@@ -573,3 +573,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-color);
 .credential-provider input::placeholder {color:#697b8b; letter-spacing:3px; opacity:1;}
 #destination-save {display:inline-flex; align-items:center; gap:8px; margin-top:18px;}
 @media(max-width:760px) {.company-settings-tabs {display:grid; grid-template-columns:repeat(2,minmax(0,1fr));} .destination-area {margin-left:8px;}}
+
+.matrix-category > summary {padding:14px 0; color:var(--accent-color);}
+.matrix-category > summary:focus-visible {outline:2px solid var(--accent-color); outline-offset:4px; border-radius:4px;}
+.matrix-category > .matrix-section-title {justify-content:flex-end; margin:4px 0 14px;}

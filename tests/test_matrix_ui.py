@@ -379,6 +379,24 @@ class MatrixUITests(unittest.TestCase):
                 self.assertTrue(button.evaluate('button => button.scrollWidth <= button.clientWidth+2'))
         self.assertEqual(self.errors,[])
 
+    def test_matrix_categories_collapse_independently_without_losing_changes(self):
+        self.page.locator('#nav-settings').click()
+        self.page.locator('#company-matrix-btn').click()
+        government = self.page.locator('#matrix-government-section > summary')
+        government.click()
+        self.assertFalse(self.page.locator('#matrix-government').is_visible())
+        self.assertTrue(self.page.locator('#matrix-specific').is_visible())
+        self.page.locator('#matrix-add-process').click()
+        self.assertFalse(self.page.locator('#matrix-government').is_visible())
+        specific = self.page.locator('#matrix-specific-section > summary')
+        specific.click()
+        self.assertFalse(self.page.locator('#matrix-specific').is_visible())
+        government.focus()
+        self.page.keyboard.press('Enter')
+        self.assertTrue(self.page.locator('#matrix-government').is_visible())
+        self.assertFalse(self.page.locator('#matrix-specific').is_visible())
+        self.assertEqual(self.errors, [])
+
     def test_process_metadata_is_separate_from_its_actual_areas(self):
         self.page.locator('#nav-settings').click()
         self.page.locator('#company-matrix-btn').click()
