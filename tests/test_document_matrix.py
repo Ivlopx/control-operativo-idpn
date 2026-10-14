@@ -226,6 +226,11 @@ class MatrixAPITests(unittest.TestCase):
         self.matrix['company'] = 'Empresa actualizada'
         self.assertEqual(self.client.put('/api/matrices/zhipos-idpn.net', json=self.matrix).status_code, 200)
         self.assertEqual(self.client.get('/api/matrices/other.net').get_json()['company'], 'Otra empresa')
+        self.assertEqual(self.client.get('/api/matrices/zhipos-idpn.net').get_json()['company'], 'ZHIPOS')
+        (self.root / 'zhipos-idpn.net.json').write_text(json.dumps({'site_name':'Empresa renombrada en WordPress'}))
+        self.assertEqual(self.client.get('/api/matrices/zhipos-idpn.net').get_json()['company'], 'Empresa renombrada en WordPress')
+        saved = self.client.put('/api/matrices/zhipos-idpn.net', json=self.matrix).get_json()
+        self.assertEqual(saved['matrix']['company'], 'Empresa renombrada en WordPress')
 
     def test_rejected_save_preserves_existing_matrix(self):
         self.matrix['government'][0]['directory'] = '../escape'

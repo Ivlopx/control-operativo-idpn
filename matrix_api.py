@@ -44,7 +44,10 @@ def bind_matrix_accounts(matrix):
 def load_company_matrix(domain):
     config, path = company_paths(domain)
     if path.is_file():
-        return bind_matrix_accounts(validate_matrix(json.loads(path.read_text(encoding='utf-8'))))
+        data = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(data, dict):
+            data['company'] = config.get('site_name') or data.get('company', domain)
+        return bind_matrix_accounts(validate_matrix(data))
     return bind_matrix_accounts(validate_matrix(default_matrix(config.get('site_name', domain))))
 
 
@@ -117,8 +120,11 @@ def get_matrix(domain):
 @matrix_api.route('/api/matrices/<domain>', methods=['PUT'])
 def save_matrix(domain):
     try:
-        _, path = company_paths(domain)
-        matrix = bind_matrix_accounts(validate_matrix(request.get_json(silent=True)))
+        config, path = company_paths(domain)
+        data = request.get_json(silent=True)
+        if isinstance(data, dict):
+            data['company'] = config.get('site_name') or data.get('company', domain)
+        matrix = bind_matrix_accounts(validate_matrix(data))
         path.parent.mkdir(parents=True, exist_ok=True)
         with matrix_write_lock:
             temporary = None
