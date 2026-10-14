@@ -1,0 +1,15 @@
+{% if idpn_user %}
+<details class="account-menu">
+  <summary class="account-chip" aria-label="Menú de {{ idpn_user.username }}">
+    <span class="account-avatar" aria-hidden="true"><svg class="ui-icon"><use href="#icon-user"></use></svg></span>
+    <strong class="account-username" title="{{ idpn_user.username }}">{{ idpn_user.username }}</strong>
+    <svg class="ui-icon account-chevron" aria-hidden="true"><use href="#icon-chevron"></use></svg>
+  </summary>
+  <div class="account-dropdown">
+    <div class="account-dropdown-heading"><span>Sesión de <strong class="account-username">{{ idpn_user.username }}</strong></span><small>{{ 'Administrador' if idpn_user.admin else 'Usuario' }}</small></div>
+    {% if idpn_user.admin %}<a href="/usuarios" {% if request.path == '/usuarios' %}aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="#icon-users"></use></svg>Usuarios</a>{% endif %}
+    <a href="/cuenta" {% if request.path == '/cuenta' %}aria-current="page"{% endif %}><svg class="ui-icon" aria-hidden="true"><use href="#icon-key"></use></svg>Cambiar contraseña</a>
+    <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#icon-logout"></use></svg>Cerrar sesión</button></form>
+  </div>
+</details>
+{% endif %}

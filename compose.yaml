@@ -1,0 +1,19 @@
+name: idpn-documental
+services:
+  app:
+    image: idpn-documental:1.0.0
+    build: .
+    restart: unless-stopped
+    init: true
+    shm_size: '1gb'
+    ports:
+      - '${IDPN_BIND_ADDRESS:-127.0.0.1}:${IDPN_PORT:-5001}:5001'
+    environment:
+      IDPN_COOKIE_SECURE: '${IDPN_COOKIE_SECURE:-true}'
+      IDPN_ADMIN_USERNAME: '${IDPN_ADMIN_USERNAME:-admin}'
+      IDPN_ADMIN_PASSWORD: '${IDPN_ADMIN_PASSWORD:-}'
+    volumes:
+      - idpn-data:/data
+    stop_grace_period: 60s
+volumes:
+  idpn-data:

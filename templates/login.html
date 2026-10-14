@@ -1,0 +1,53 @@
+{% extends 'auth_layout.html' %}
+{% block title %}Iniciar sesión · IDPN{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block width %}login-workspace{% endblock %}
+{% block header_extra %}<span class="login-badge">Área privada</span>{% endblock %}
+{% block content %}
+<div class="login-grid">
+  <section class="login-intro" aria-labelledby="login-intro-title">
+    <div class="login-intro-content">
+      <span class="login-eyebrow">PLATAFORMA IDPN</span>
+      <h2 id="login-intro-title">Tus documentos,<br>siempre en orden.</h2>
+      <p class="login-intro-description">Administra y publica la documentación de tu empresa desde un solo espacio.</p>
+      <div class="login-features">
+        <div class="login-feature">
+          <span class="login-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></span>
+          <div><h3>Publicación de documentos</h3><p>Altas, nuevas versiones y registros de baja.</p></div>
+        </div>
+        <div class="login-feature">
+          <span class="login-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg></span>
+          <div><h3>Control de versiones</h3><p>Archivos organizados por empresa y área.</p></div>
+        </div>
+        <div class="login-feature">
+          <span class="login-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></svg></span>
+          <div><h3>Acceso personal</h3><p>Tu cuenta y tus sesiones de trabajo.</p></div>
+        </div>
+      </div>
+      <div class="login-document-tags"><span>Documentos</span><span>Políticas</span><span>Formularios</span></div>
+    </div>
+  </section>
+<section class="login-card" aria-labelledby="login-title">
+  <div class="login-heading">
+    <span class="login-lock" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+    </span>
+    <div><h1 id="login-title">Iniciar sesión</h1><p>Control documental · Área privada</p></div>
+  </div>
+  <p class="login-description">Accede con tu cuenta para continuar.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+      <label for="username">Usuario</label>
+      <input id="username" name="username" placeholder="Tu usuario" value="{{ request.form.get('username', '') }}" required autocomplete="username" maxlength="64" autofocus>
+    </div>
+    <div class="form-group">
+      <label for="password">Contraseña</label>
+      <input id="password" name="password" type="password" placeholder="Tu contraseña" required autocomplete="current-password" maxlength="256">
+    </div>
+    {% if error %}<div class="login-error" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v1"/></svg><span>{{ error }}</span></div>{% endif %}
+    <button class="btn btn-primary login-submit" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></svg>Entrar</button>
+  </form>
+</section>
+</div>
+{% endblock %}

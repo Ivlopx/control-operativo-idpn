@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+{% set idpn_user = idpn_user|default(none) %}
+<head>
+  <meta name="csrf-token" content="{{ csrf_token() if csrf_token is defined else '' }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración De Páginas | IDPN</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static',filename='idpn-dopyme.png') }}">
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dopyme-theme.css') }}">
+</head>
+<body>
+  {% include 'icons.html' %}
+
+  <div class="container">
+    <!-- Sidebar Navigation -->
+    <header class="sidebar app-header">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='idpn-dopyme.png') }}" alt="IDPN Logo" class="brand-logo">
+        <div class="brand-title">CONTROL DOCUMENTAL</div>
+      </div>
+      
+      <div class="nav-caption">Espacio de trabajo</div>
+      <nav class="nav-menu workspace-nav" aria-label="Espacio de trabajo">
+        <button type="button" class="nav-item active" id="nav-process1" onclick="switchProcessTab('create')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg><span class="nav-label"><strong>Primer proceso</strong></span></button>
+        <button type="button" class="nav-item" id="nav-process2" onclick="switchProcessTab('remove')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-archive"></use></svg><span class="nav-label"><strong>Segundo proceso</strong></span></button>
+        <button type="button" {% if idpn_user and not idpn_user.can_edit_companies %}hidden{% endif %} class="nav-item" id="nav-settings" onclick="switchTab('settings')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"></use></svg><span class="nav-label"><strong>Configuración de empresas</strong></span></button>
+      </nav>
+      {% if idpn_user %}{% include 'account_controls.html' %}{% endif %}
+      <div class="sidebar-footer">
+        <p>IDPN Automation Tool</p>
+        <p>v1.0.0</p>
+      </div>
+    </header>
+
+    <!-- Main Content Panel -->
+    <div class="main-content">
+      
+      <!-- 1ER PROCESO: CREAR / INCRUSTAR TAB -->
+      <div class="tab-content active" id="tab-process1">
+        <div class="tab-header">
+          <h2>Gestión de documentos</h2>
+          <p>Ingresa los detalles del documento para crear y formatear la página en WordPress.</p>
+        </div>
+        
+        <div class="dashboard-grid">
+          <!-- Page Request Form P1 -->
+          <div class="card">
+            <div id="form-alert-p1" class="alert alert-error"></div>
+            <div id="form-success-p1" class="alert alert-success"></div>
+            
+            <form id="page-form-p1" onsubmit="runAutomation('create', event)">
+              <div class="form-group">
+                <label for="input-folio-p1">Folio</label>
+                <input type="text" id="input-folio-p1" placeholder="Ej. COD541403" required>
+                <p class="field-hint">Detecta automáticamente la empresa por su prefijo.</p>
+              </div>
+              <div class="form-group">
+                <label for="site-select-p1">Sitio de trabajo</label>
+                <select id="site-select-p1" required>
+                  <option value="" disabled selected>Selecciona un sitio...</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="campo-tipo-recurso-p1">
+                <label>Tipo de Recurso</label>
+                <div class="resource-choices">
+                  <label class="resource-choice">
+                    <input type="radio" name="input-embed-type-p1" value="document" checked>
+                    <span class="resource-choice-content"><span class="resource-icons"><svg class="ui-icon aws-icon" aria-hidden="true"><use href="#icon-s3"></use></svg><svg class="ui-icon azure-icon" aria-hidden="true"><use href="#icon-azure"></use></svg></span><span><strong>Documento</strong><small>Amazon S3 / Azure</small></span></span>
+                  </label>
+                  <label class="resource-choice">
+                    <input type="radio" name="input-embed-type-p1" value="form">
+                    <span class="resource-choice-content"><svg class="ui-icon" aria-hidden="true"><use href="#icon-form"></use></svg><span><strong>Formulario / Web</strong><small>Cognito y contenido web</small></span></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group" id="campo-politica-p1">
+                <label>
+                  Configuración Adicional
+                </label>
+                <label class="policy-toggle" for="input-is-politica-p1">
+                  <input type="checkbox" id="input-is-politica-p1" role="switch">
+                  <span class="policy-switch" aria-hidden="true"></span>
+                  <span>Es una política</span>
+                </label>
+              </div>
+
+              {% include 'document_fields.html' %}
+
+              <div class="form-group" id="campo-nombre-p1">
+                <label for="input-nombre-p1">Nombre del Documento</label>
+                <input type="text" id="input-nombre-p1" placeholder="Ej. CheckList-Arribo-Ingreso-de-Equipos-a-Planta" required>
+              </div>
+
+              <div class="form-group" id="campo-enlace-p1" hidden>
+                <label for="input-enlace-p1">Enlace del Formulario / Web</label>
+                <input type="url" id="input-enlace-p1" placeholder="https://...">
+              </div>
+
+              <div id="matrix-file-field" class="form-group"><label for="matrix-file">Documento</label><input id="matrix-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" required></div>
+              {% include 'document_classification.html' %}
+              <div id="matrix-plan-error" class="matrix-message matrix-error" role="alert" hidden></div>
+              <div id="matrix-result" class="matrix-result" hidden><dl id="matrix-result-fields"></dl></div>
+
+            </form>
+          </div>
+
+          <!-- Real-time Right Panel: Console & Live Browser Container -->
+          <div class="right-panel-placeholder" id="right-panel-container-p1">
+            <div class="right-panel-tabs" id="right-panel">
+              <div class="tabs-header">
+                <div class="terminal-buttons" style="margin-right: 12px; display: flex; gap: 8px; align-items: center;">
+                  <span class="terminal-button red" style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></span>
+                  <span class="terminal-button yellow" style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></span>
+                  <span class="terminal-button green" style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></span>
+                </div>
+                <button type="button" class="tab-btn active" id="right-tab-browser-btn" onclick="switchRightTab('browser')" style="margin-left: 8px;">
+                  <svg class="ui-icon" aria-hidden="true"><use href="#icon-globe"></use></svg> Navegador
+                </button>
+                <button type="button" class="tab-btn" id="right-tab-console-btn" onclick="switchRightTab('console')">
+                  <i class="fa-solid fa-terminal"></i> Consola
+                </button>
+                <button type="button" id="preview-expand-btn" class="preview-expand-btn" onclick="togglePreviewSize()" aria-label="Ampliar visor" title="Ampliar visor" aria-expanded="false"><svg class="ui-icon" aria-hidden="true"><use href="#icon-expand"></use></svg></button>
+              </div>
+              
+              <!-- Tab 1: Live Browser View -->
+              <div class="right-tab-content active" id="right-tab-browser">
+                <div class="browser-view-wrapper">
+                  <div class="browser-status-bar">
+                    <span class="status-indicator offline" id="browser-status-dot"></span>
+                    <span id="browser-status-text">Desconectado</span>
+                  </div>
+                  <div class="browser-screen-container" tabindex="0" id="browser-screen-container" title="Haz clic en la pantalla para interactuar. Usa el teclado para escribir.">
+                    <img id="browser-screencast" src="" alt="Transmisión del navegador" style="display: none;" draggable="false">
+                    <div class="browser-placeholder" id="browser-placeholder">
+                      <i class="fa-solid fa-window-maximize"></i>
+                      <p>Inicia la automatización para ver e interactuar con el navegador web en tiempo real.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tab 2: Console Terminal -->
+              <div class="right-tab-content" id="right-tab-console">
+                <div class="terminal-body" id="terminal-console">
+                  <div class="terminal-line">
+                    <span class="terminal-time">00:00:00</span>
+                    <span class="terminal-text info">Consola lista. Selecciona un sitio y completa el formulario para comenzar...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button type="submit" form="page-form-p1" class="btn btn-primary" id="submit-btn-p1">
+              <i class="fa-solid fa-play"></i> Subir y publicar documento
+            </button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- 2DO PROCESO: QUITAR IFRAME Y FOLIO TAB -->
+      <div class="tab-content" id="tab-process2">
+        <div class="tab-header">
+          <h2>Retirar formulario y folio</h2>
+          <p>Ingresa el folio para retirar Cognito y el folio visible. Si corresponde a una baja, también se archivarán los antecedentes.</p>
+        </div>
+        
+        <div class="dashboard-grid">
+          <!-- Page Request Form P2 -->
+          <div class="card">
+            <div id="form-alert-p2" class="alert alert-error"></div>
+            <div id="form-success-p2" class="alert alert-success"></div>
+            
+            <form id="page-form-p2" onsubmit="runAutomation('remove', event)">
+              <div class="form-group">
+                <div class="folio-section-header"><label for="input-folio-p2-first">Folios a procesar</label><button type="button" class="btn btn-secondary folio-add-btn" onclick="addFolioRow()"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg> Agregar folio</button></div>
+                <div id="folios-container-p2" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Row 1 (Default) -->
+                  <div class="folio-input-row" style="display: flex; gap: 8px; align-items: center;">
+                    <div style="flex: 1; position: relative;">
+                      <input type="text" id="input-folio-p2-first" class="input-folio-p2-item" placeholder="Ej. COD541403" required style="padding-right: 130px;">
+                      <span class="detected-site-badge">Sin detectar</span>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+
+            </form>
+
+            <!-- Results Box for Process 2 (Scrollable inside dashboard grid) -->
+            <div id="results-container-p2" style="display: none; margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 20px; flex-shrink: 0; flex-direction: column; gap: 16px;">
+              <h3 style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Resultados de la Actualización</h3>
+              
+              <!-- Secciones -->
+              <div id="results-exitosos-section" style="display: none;">
+                <h4 style="font-size: 13px; font-weight: 600; color: var(--success-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-circle-check"></i> Exitosos (<span id="results-exitosos-count">0</span>)
+                </h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; background: #fff; table-layout: fixed;">
+                    <thead>
+                      <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; border-right: 1px solid #e2e8f0; width: 40%;">Encabezado</th>
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; border-right: 1px solid #e2e8f0; width: 45%;">Enlace</th>
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; text-align: center; width: 15%;">Ir</th>
+                      </tr>
+                    </thead>
+                    <tbody id="results-exitosos-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div id="results-fallidos-section" style="display: none;">
+                <h4 style="font-size: 13px; font-weight: 600; color: var(--error-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-circle-xmark"></i> Fallidos (<span id="results-fallidos-count">0</span>)
+                </h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; background: #fff; table-layout: fixed;">
+                    <thead>
+                      <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; border-right: 1px solid #e2e8f0; width: 30%;">Folio</th>
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; border-right: 1px solid #e2e8f0; width: 50%;">Error</th>
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; text-align: center; width: 20%;">Sitio</th>
+                      </tr>
+                    </thead>
+                    <tbody id="results-fallidos-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div id="results-desconocidos-section" style="display: none;">
+                <h4 style="font-size: 13px; font-weight: 600; color: var(--warning-color); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                  <i class="fa-solid fa-circle-question"></i> Desconocidos (<span id="results-desconocidos-count">0</span>)
+                </h4>
+                <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;">
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; background: #fff; table-layout: fixed;">
+                    <thead>
+                      <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; border-right: 1px solid #e2e8f0; width: 35%;">Folio</th>
+                        <th style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: #64748b; width: 65%;">Detalle</th>
+                      </tr>
+                    </thead>
+                    <tbody id="results-desconocidos-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-time Right Panel: Console & Live Browser Container -->
+          <div class="right-panel-placeholder" id="right-panel-container-p2">
+            <!-- Appended via JavaScript when this tab is selected -->
+            <button type="submit" form="page-form-p2" class="btn btn-primary" id="submit-btn-p2"><svg class="ui-icon" aria-hidden="true"><use href="#icon-archive"></use></svg> Procesar folios</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div class="tab-content" id="tab-settings">
+        <div class="tab-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <div>
+            <h2>Configuración de empresas</h2>
+            <p>Selecciona una empresa para configurar su sitio WordPress, estructura documental y almacenamiento.</p>
+          </div>
+
+        </div>
+
+        <div class="settings-grid">
+          <div class="company-config-panels">
+            <div class="settings-tabs company-settings-tabs" aria-label="Configuración de la empresa">
+              <button type="button" class="settings-tab-btn active" id="company-site-btn" onclick="switchCompanySection('site')"><i class="fa-brands fa-wordpress" aria-hidden="true"></i>Sitio WordPress</button>
+              <button type="button" class="settings-tab-btn" id="company-matrix-btn" onclick="switchCompanySection('matrix')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Matriz y almacenamiento</button>
+              <button type="button" class="settings-tab-btn" id="company-storage-btn" {% if idpn_user and not idpn_user.admin %}hidden{% endif %} onclick="switchCompanySection('storage')"><svg class="ui-icon storage-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Acceso al almacenamiento <span class="settings-scope">Global</span></button>
+            </div>
+        <div class="company-toolbar card" id="company-toolbar">
+          <div class="form-group"><label for="config-company-select">Empresa</label><select id="config-company-select" onchange="selectConfig(this.value)"><option value="">Selecciona una empresa...</option></select></div>
+          <div class="company-toolbar-actions" {% if idpn_user and not idpn_user.admin %}hidden{% endif %}><button type="button" class="btn btn-secondary" onclick="createNewConfig()"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg>Nueva empresa</button><button type="button" class="btn btn-danger" id="config-delete-selected" onclick="deleteConfig(event, selectedConfigDomain)" disabled>Eliminar empresa</button></div>
+        </div>
+            <div id="company-site-panel">
+          <!-- Config Details Form -->
+          <div class="card" id="config-detail-card" style="display: none;">
+            <div id="settings-alert" class="alert alert-error"></div>
+            <div id="settings-success" class="alert alert-success"></div>
+            
+            <form id="settings-form" onsubmit="saveConfig(event)">
+              <input type="hidden" id="config-is-new" value="false">
+              
+              <div class="form-row company-identity-row">
+                <div class="form-group">
+                  <label for="config-name">Nombre del Sitio</label>
+                  <input type="text" id="config-name" placeholder="Ej. Ufara IDPN" required>
+                </div>
+                <div class="form-group">
+                  <label for="config-domain">Dominio (Archivo JSON)</label>
+                  <input type="text" id="config-domain" placeholder="Ej. ufara-idpn.net" required>
+                </div>
+                <div class="form-group">
+                  <label for="config-folio-prefix">Prefijo de Folio (Para auto-detectar el sitio)</label>
+                  <input type="text" id="config-folio-prefix" placeholder="Ej. COD, 305_, 91 (Vacío si no aplica)">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="config-login-url">URL de Login</label>
+                  <input type="url" id="config-login-url" placeholder="https://dominio.com/wp-login.php" required>
+                </div>
+                <div class="form-group">
+                  <label for="config-create-url">URL Nueva Página</label>
+                  <input type="url" id="config-create-url" placeholder="https://dominio.com/wp-admin/post-new.php?post_type=page" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="config-cognito">Código Iframe (Cognito Forms / Seamless Script)</label>
+                <div class="code-editor">
+                  <div class="code-editor-header"><span>HTML / JavaScript</span><span>Cognito Forms</span></div>
+                  <textarea id="config-cognito" class="code-editor-input" placeholder="&lt;script src='...'&gt;&lt;/script&gt;" spellcheck="false" autocapitalize="off" autocorrect="off" wrap="off" required></textarea>
+                </div>
+              </div>
+
+              <!-- Sub tabs for plugins settings -->
+              <div class="settings-tabs">
+                <button type="button" class="settings-tab-btn active" id="subtab-um-btn" onclick="switchSubTab('um')">
+                  Ultimate Member
+                </button>
+                <button type="button" class="settings-tab-btn" id="subtab-astra-btn" onclick="switchSubTab('astra')">
+                  Astra Layout
+                </button>
+              </div>
+
+              <!-- Ultimate Member Config Panel -->
+              <div class="settings-tab-content active" id="subtab-um">
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <input type="checkbox" id="config-um-restrict" style="width: auto;" checked>
+                  <label for="config-um-restrict" style="margin-bottom: 0; cursor: pointer; text-transform: none;">¿Restringir el acceso a esta entrada?</label>
+                </div>
+
+                <div class="form-group">
+                  <label for="config-um-accessible">¿Quién puede acceder a esta entrada?</label>
+                  <select id="config-um-accessible">
+                    <option value="0">Todos</option>
+                    <option value="1">Usuarios desconectados</option>
+                    <option value="2" selected>Usuarios conectados</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Selecciona qué perfiles pueden acceder a esta entrada</label>
+                  <div class="checkbox-grid">
+                    <label class="checkbox-label"><input type="checkbox" value="administrator" class="role-chk" checked> Administrator</label>
+                    <label class="checkbox-label"><input type="checkbox" value="editor" class="role-chk" checked> Editor</label>
+                    <label class="checkbox-label"><input type="checkbox" value="author" class="role-chk" checked> Author</label>
+                    <label class="checkbox-label"><input type="checkbox" value="contributor" class="role-chk" checked> Contributor</label>
+                    <label class="checkbox-label"><input type="checkbox" value="subscriber" class="role-chk"> Subscriber</label>
+                    
+                    <!-- Forum Roles -->
+                    <label class="checkbox-label"><input type="checkbox" value="bbp_keymaster" class="role-chk"> Keymaster</label>
+                    <label class="checkbox-label"><input type="checkbox" value="bbp_moderator" class="role-chk"> Moderator</label>
+                    <label class="checkbox-label"><input type="checkbox" value="bbp_participant" class="role-chk"> Participant</label>
+                    <label class="checkbox-label"><input type="checkbox" value="bbp_spectator" class="role-chk"> Spectator</label>
+                    <label class="checkbox-label"><input type="checkbox" value="bbp_blocked" class="role-chk"> Blocked</label>
+                    
+                    <!-- Custom Roles (Common / Ufara / Bolco / ICC) -->
+                    <label class="checkbox-label"><input type="checkbox" value="um_sgi" class="role-chk"> SGI</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_nivel-1-top-manager" class="role-chk"> Nivel 1 - Top Manager</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_custom_role_4" class="role-chk"> Nivel 2 - Manager/Gerentes (Bolco)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_nivel-2-manager" class="role-chk"> Nivel 2 - Manager (ICC)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_custom_role_5" class="role-chk"> Nivel 3 - Training Jefes/Supervisores (Bolco)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_nivel-3-training" class="role-chk"> Nivel 3 - Training (ICC)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_custom_role_6" class="role-chk"> Nivel 4 - Ejecutivos/Operadores (Bolco)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_nivel-4-ejecutivo" class="role-chk"> Nivel 4 - Ejecutivo (ICC)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_custom_role_3" class="role-chk"> Nivel 5 - Visita/Cliente (Bolco)</label>
+                    
+                    <label class="checkbox-label"><input type="checkbox" value="um_recursos-humanos" class="role-chk"> Recursos Humanos</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_rrhh" class="role-chk"> RRHH (Ufara)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_ingenieria" class="role-chk"> Ingeniería</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_produccion" class="role-chk"> Producción</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_calidad" class="role-chk"> Calidad</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_ventas" class="role-chk"> Ventas</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_administracion" class="role-chk"> Administración</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_ceo" class="role-chk"> CEO</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_dado-de-baja" class="role-chk"> Dado de baja</label>
+                    
+                    <label class="checkbox-label"><input type="checkbox" value="um_custom_role_1" class="role-chk"> Jefe de área / Nivel 5 (ICC)</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_jefe-de-comercial" class="role-chk"> Jefe de comercial</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_servicio-al-cliente" class="role-chk"> Servicio al cliente</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_custom_role_2" class="role-chk"> Jefe de administración</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_jefe-de-operaciones" class="role-chk"> Jefe de operaciones</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_jefe-de-ingenieria" class="role-chk"> Jefe de ingeniería</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_jefe-de-calidad" class="role-chk"> Jefe de calidad</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_jefe-de-desarrollo" class="role-chk"> Jefe de desarrollo</label>
+                    
+                    <label class="checkbox-label"><input type="checkbox" value="zpm_user" class="role-chk"> Zephyr - User</label>
+                    <label class="checkbox-label"><input type="checkbox" value="zpm_manager" class="role-chk"> Zephyr - Manager</label>
+                    <label class="checkbox-label"><input type="checkbox" value="zpm_admin" class="role-chk"> Zephyr - Administrator</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_compras-manufactura" class="role-chk"> Compras manufactura</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_auditor-interno" class="role-chk"> Auditor Interno</label>
+                    <label class="checkbox-label"><input type="checkbox" value="um_comite-de-mejora" class="role-chk"> Comité de Mejora</label>
+                    
+                    <!-- Ufara Legacy / Extras -->
+                    <label class="checkbox-label"><input type="checkbox" value="marketing" class="role-chk"> Marketing</label>
+                    <label class="checkbox-label"><input type="checkbox" value="logistica" class="role-chk"> Logística</label>
+                    <label class="checkbox-label"><input type="checkbox" value="adquisiciones" class="role-chk"> Adquisiciones</label>
+                    <label class="checkbox-label"><input type="checkbox" value="sistemas" class="role-chk"> Sistemas</label>
+                    <label class="checkbox-label"><input type="checkbox" value="compras" class="role-chk"> Compras</label>
+                    <label class="checkbox-label"><input type="checkbox" value="almacen" class="role-chk"> Almacén</label>
+                    <label class="checkbox-label"><input type="checkbox" value="tesoreria" class="role-chk"> Tesorería</label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="config-um-noaccess">¿Qué ocurre cuando los usuarios sin acceso intentan ver la entrada?</label>
+                  <select id="config-um-noaccess">
+                    <option value="0" selected>Mostrar el mensaje de acceso restringido</option>
+                    <option value="1">Redirigir al usuario</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Astra Settings Panel -->
+              <div class="settings-tab-content" id="subtab-astra">
+                <div class="form-group">
+                  <label for="config-astra-container">Container Layout</label>
+                  <select id="config-astra-container">
+                    <option value="default">Ajustes del personalizador</option>
+                    <option value="normal-width-container" selected>Normal</option>
+                    <option value="narrow-width-container">Estrecho</option>
+                    <option value="full-width-container">Ancho completo</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="config-astra-style">Estilo del Contenedor</label>
+                  <select id="config-astra-style">
+                    <option value="Predeterminado">Predeterminado</option>
+                    <option value="Sin caja">Sin caja</option>
+                    <option value="Recuadro" selected>Recuadro</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="config-astra-sidebar">Sidebar Layout</label>
+                  <select id="config-astra-sidebar">
+                    <option value="default">Predeterminado</option>
+                    <option value="no-sidebar">Sin barra lateral</option>
+                    <option value="left-sidebar">Barra lateral izquierda</option>
+                    <option value="right-sidebar" selected>Barra lateral derecha</option>
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary" style="margin-top: 12px; width: 100%;">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración del Sitio
+              </button>
+            </form>
+          </div>
+            </div>
+            <div id="company-matrix-panel" hidden>
+              {% include 'matrix.html' %}
+            </div>
+            <div id="company-storage-panel" hidden>
+              {% include 'storage_settings.html' %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>window.idpnUser = {{ idpn_user|tojson }};</script>
+  <script src="{{ url_for('static',filename='auth.js') }}"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="{{ url_for('static', filename='matrix.js') }}"></script>
+</body>
+</html>

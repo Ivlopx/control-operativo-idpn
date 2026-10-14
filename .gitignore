@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/
+node_modules/
+
+# Runtime data: company settings, users, credentials and browser sessions.
+config/
+sessions/
+.uploads/
+.env
+.env.*
+!.env.example
+.aws/
+.codex/
+.agents/
+
+# Built images and local distribution files are generated from source.
+dist/
+*.tar
+*.tar.gz
+*.log

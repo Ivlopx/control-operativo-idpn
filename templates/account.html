@@ -1,0 +1,20 @@
+{% extends 'auth_layout.html' %}
+{% block title %}Cambiar contraseña · IDPN{% endblock %}
+{% block width %}password-workspace{% endblock %}
+{% block content %}
+<div class="page-heading"><span class="page-heading-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-key"></use></svg></span><div><h1>Cambiar contraseña</h1><p>Actualiza la contraseña de tu cuenta.</p></div></div>
+<section class="card password-card">
+  <div class="password-account"><span class="account-avatar" aria-hidden="true"><svg class="ui-icon"><use href="#icon-user"></use></svg></span><div><strong>{{ idpn_user.username }}</strong><span>{{ 'Administrador' if idpn_user.admin else 'Usuario' }}</span></div></div>
+  {% if idpn_user.must_change %}<div class="account-notice"><svg class="ui-icon" aria-hidden="true"><use href="#icon-key"></use></svg><span>Cambia tu contraseña inicial para continuar.</span></div>{% endif %}
+  {% if error %}<div class="account-notice account-notice-error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group"><label for="current_password">Contraseña actual</label><input id="current_password" name="current_password" type="password" required autocomplete="current-password" placeholder="Introduce tu contraseña actual"></div>
+    <div class="password-new-fields">
+      <div class="form-group"><label for="new_password">Nueva contraseña</label><input id="new_password" name="new_password" type="password" minlength="12" maxlength="256" required autocomplete="new-password" placeholder="Al menos 12 caracteres"></div>
+      <div class="form-group"><label for="confirm_password">Confirmar contraseña</label><input id="confirm_password" name="confirm_password" type="password" minlength="12" maxlength="256" required autocomplete="new-password" placeholder="Repite la nueva contraseña"></div>
+    </div>
+    <div class="password-actions"><a class="btn btn-secondary" href="/primer-proceso"><svg class="ui-icon" aria-hidden="true"><use href="#icon-back"></use></svg>Volver a los procesos</a><button class="btn btn-primary"><svg class="ui-icon" aria-hidden="true"><use href="#icon-save"></use></svg>Guardar contraseña</button></div>
+  </form>
+</section>
+{% endblock %}

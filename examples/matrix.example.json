@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "company": "Empresa de ejemplo",
+  "storage": {
+    "provider": "",
+    "target": "",
+    "root": "empresa-de-ejemplo"
+  },
+  "types": [
+    {
+      "id": "procedimiento",
+      "name": "Procedimientos",
+      "government_prefix": "PG-D",
+      "specific_prefix": "PE",
+      "store_file": true
+    },
+    {
+      "id": "instructivo",
+      "name": "Instructivos",
+      "government_prefix": "IG-D",
+      "specific_prefix": "IE",
+      "store_file": true
+    },
+    {
+      "id": "formato",
+      "name": "Formatos",
+      "government_prefix": "FG-D",
+      "specific_prefix": "FE",
+      "store_file": true
+    },
+    {
+      "id": "formulario",
+      "name": "Formularios",
+      "government_prefix": "FG-D",
+      "specific_prefix": "FE",
+      "store_file": false
+    }
+  ],
+  "government": [
+    {
+      "id": "control-de-documentos",
+      "name": "Control de Documentos",
+      "abbreviation": "CON"
+    },
+    {
+      "id": "control-de-registros",
+      "name": "Control de Registros",
+      "abbreviation": ""
+    },
+    {
+      "id": "control-de-no-conformes",
+      "name": "Control de No Conformes",
+      "abbreviation": "CNO"
+    },
+    {
+      "id": "acciones-correctivas",
+      "name": "Acciones Correctivas",
+      "abbreviation": ""
+    },
+    {
+      "id": "gestion-de-riesgos",
+      "name": "Gestión de Riesgos",
+      "abbreviation": ""
+    },
+    {
+      "id": "auditoria-interna",
+      "name": "Auditoría Interna",
+      "abbreviation": ""
+    },
+    {
+      "id": "infraestructura",
+      "name": "Infraestructura",
+      "abbreviation": ""
+    },
+    {
+      "id": "mejora-continua",
+      "name": "Mejora Continua",
+      "abbreviation": ""
+    },
+    {
+      "id": "revision-por-la-direccion",
+      "name": "Revisión por la Dirección",
+      "abbreviation": ""
+    }
+  ],
+  "specific": [
+    {
+      "id": "comercial",
+      "name": "Comercial",
+      "abbreviation": "C",
+      "areas": [
+        {
+          "id": "administracion-de-ventas",
+          "name": "Administración de Ventas",
+          "abbreviation": ""
+        },
+        {
+          "id": "atencion-de-cliente",
+          "name": "Atención de Cliente",
+          "abbreviation": ""
+        }
+      ]
+    },
+    {
+      "id": "operaciones",
+      "name": "Operaciones",
+      "abbreviation": "O",
+      "areas": [
+        {
+          "id": "produccion",
+          "name": "Producción",
+          "abbreviation": ""
+        },
+        {
+          "id": "mantenimiento",
+          "name": "Mantenimiento",
+          "abbreviation": ""
+        },
+        {
+          "id": "logistica-y-distribucion",
+          "name": "Logística y Distribución",
+          "abbreviation": ""
+        },
+        {
+          "id": "almacen",
+          "name": "Almacén",
+          "abbreviation": ""
+        }
+      ]
+    },
+    {
+      "id": "administracion",
+      "name": "Administración",
+      "abbreviation": "A",
+      "areas": [
+        {
+          "id": "contabilidad",
+          "name": "Contabilidad",
+          "abbreviation": ""
+        },
+        {
+          "id": "recursos-humanos",
+          "name": "Recursos Humanos",
+          "abbreviation": "RHS"
+        },
+        {
+          "id": "tesoreria",
+          "name": "Tesorería",
+          "abbreviation": ""
+        },
+        {
+          "id": "compras",
+          "name": "Compras",
+          "abbreviation": ""
+        }
+      ]
+    },
+    {
+      "id": "ingenieria",
+      "name": "Ingeniería",
+      "abbreviation": "I",
+      "areas": [
+        {
+          "id": "desarrollo-de-productos-nuevos",
+          "name": "Desarrollo de Productos Nuevos",
+          "abbreviation": ""
+        },
+        {
+          "id": "ingenieria-de-calidad",
+          "name": "Ingeniería de Calidad",
+          "abbreviation": ""
+        }
+      ]
+    }
+  ]
+}

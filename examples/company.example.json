@@ -1,0 +1,24 @@
+{
+  "site_name": "Empresa de ejemplo",
+  "base_url": "https://empresa.example",
+  "login_url": "https://empresa.example/wp-login.php",
+  "create_page_url": "https://empresa.example/wp-admin/post-new.php?post_type=page",
+  "cognito_script": "",
+  "folio_prefix": "EX",
+  "ultimate_member": {
+    "restrict_access": true,
+    "accessible_to": "2",
+    "roles": [
+      "administrator",
+      "editor",
+      "author",
+      "contributor"
+    ],
+    "no_access_action": "0"
+  },
+  "astra_settings": {
+    "container_layout": "normal-width-container",
+    "container_style": "Recuadro",
+    "sidebar_layout": "right-sidebar"
+  }
+}

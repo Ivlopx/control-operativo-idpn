@@ -1,0 +1,15 @@
+<div id="document-classification">
+  <div class="form-group">
+    <label id="document-action-label">Acción documental</label>
+    <div class="document-actions" role="radiogroup" aria-labelledby="document-action-label">
+      <label class="action-choice"><input type="radio" name="document-action" value="alta" checked><span><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg>Alta</span></label>
+      <label class="action-choice"><input type="radio" name="document-action" value="version"><span><svg class="ui-icon" aria-hidden="true"><use href="#icon-version"></use></svg>Nueva versión</span></label>
+      <label class="action-choice"><input type="radio" name="document-action" value="baja"><span><svg class="ui-icon" aria-hidden="true"><use href="#icon-archive"></use></svg>Baja</span></label>
+    </div>
+    <select id="matrix-action" hidden aria-hidden="true" tabindex="-1"><option value="alta">Alta</option><option value="version">Nueva versión</option><option value="baja">Baja del documento</option></select>
+  </div>
+  <div class="form-group" id="campo-codigo-p1">
+    <label for="input-codigo-p1">Código del documento</label>
+    <div class="document-code-row"><input id="input-codigo-p1" required placeholder="FE-A-RHS-003" autocomplete="off"><button class="btn btn-secondary" type="button" id="matrix-detect-code"><svg class="ui-icon" aria-hidden="true"><use href="#icon-edit"></use></svg><span>Clasificar manualmente</span></button></div>
+  </div>
+</div>

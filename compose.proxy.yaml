@@ -1,0 +1,12 @@
+# Join the network already used by Nginx Proxy Manager.
+services:
+  app:
+    networks:
+      default: {}
+      proxy:
+        aliases:
+          - idpn-documental
+networks:
+  proxy:
+    external: true
+    name: '${IDPN_PROXY_NETWORK:-infraestructura_default}'

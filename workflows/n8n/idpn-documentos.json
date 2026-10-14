@@ -1,0 +1,783 @@
+{
+  "name": "IDPN · Documentos S3 y Azure",
+  "nodes": [
+    {
+      "id": "881cf25c-7d9a-534b-b0a0-529e3292118c",
+      "name": "IDPN documentos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "idpn-documentos",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "file"
+        }
+      },
+      "webhookId": "733625c1-0ef6-58b0-95c5-adf8c46415b5"
+    },
+    {
+      "id": "1934bd87-f315-5a57-9eac-50b74c096409",
+      "name": "Descarga pública",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "idpn-documentos-descarga",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "343c20d1-7a91-5867-a74f-e55e60d70f6e"
+    },
+    {
+      "id": "a014b74c-c7db-5c5e-bd92-b17022001fb5",
+      "name": "Validar entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "/* IDPN storage protocol. No credentials or network access live in this module. */\nconst IDPN = (() => {\n  const mime = {pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};\n  const encodePath = value => value.split('/').map(encodeURIComponent).join('/');\n  const slug = value => value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');\n  function xmlDecode(value) {\n    return value.replace(/&(#x[0-9a-f]+|#\\d+|amp|lt|gt|quot|apos);/gi, (_, entity) => {\n      if (entity[0] === '#') return String.fromCodePoint(entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)));\n      return {amp:'&', lt:'<', gt:'>', quot:'\"', apos:\"'\"}[entity.toLowerCase()];\n    });\n  }\n  const tag = (xml, name) => {const match = xml.match(new RegExp(`<${name}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/${name}>`)); return match ? xmlDecode(match[1].replace(/^<!\\[CDATA\\[([\\s\\S]*)\\]\\]>$/, '$1')) : '';};\n  function listing(body, provider, destinations = false) {\n    if (typeof body !== 'string' || /<!DOCTYPE|<!ENTITY/i.test(body)) throw new Error('Listado XML inválido.');\n    const root = destinations ? (provider === 's3' ? 'ListAllMyBucketsResult' : 'EnumerationResults') : (provider === 's3' ? 'ListBucketResult' : 'EnumerationResults');\n    if (!new RegExp(`<${root}(?:\\\\s|>)`).test(body) || !body.includes(`</${root}>`)) throw new Error('Respuesta de inventario incompleta.');\n    const itemTag = destinations ? (provider === 's3' ? 'Bucket' : 'Container') : (provider === 's3' ? 'Contents' : 'Blob');\n    const entries = [...body.matchAll(new RegExp(`<${itemTag}>([\\\\s\\\\S]*?)<\\\\/${itemTag}>`, 'g'))].map(match => {\n      const item = match[1];\n      if (destinations) return {name: tag(item, 'Name')};\n      const key = tag(item, provider === 's3' ? 'Key' : 'Name');\n      const etag = tag(item, provider === 's3' ? 'ETag' : 'Etag');\n      const sizeValue = tag(item, provider === 's3' ? 'Size' : 'Content-Length');\n      if (!key || !etag || !/^\\d+$/.test(sizeValue)) throw new Error('Objeto sin key, etag o tamaño.');\n      return {key, etag, size: Number(sizeValue)};\n    });\n    const next = tag(body, provider === 's3' ? 'NextContinuationToken' : 'NextMarker') || (destinations && provider === 's3' ? tag(body,'ContinuationToken') : '');\n    if (provider === 's3' && tag(body, 'IsTruncated') === 'true' && !next) throw new Error('S3 omitió el token de paginación.');\n    return {entries, next};\n  }\n  function initialize(meta, file = null) {\n    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new Error('Metadatos inválidos.');\n    const storage = meta.storage || {};\n    if (!['s3','azure'].includes(storage.provider)) throw new Error('Selecciona S3 o Azure.');\n    if (storage.provider === 's3' && !/^[a-z]{2}(?:-[a-z]+)+-\\d+$/.test(storage.region || '')) throw new Error('Falta la región de S3.');\n    if (storage.provider === 'azure' && !/^[a-z0-9]{3,24}$/.test(storage.account || '')) throw new Error('Falta la cuenta de Azure.');\n    const operation = meta.operation || 'document';\n    if (!['inventory','document','destinations','download'].includes(operation)) throw new Error('Operación no admitida.');\n    if (operation !== 'destinations' && !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(storage.target || '')) throw new Error('Bucket/contenedor inválido.');\n    if (storage.provider === 'azure' && storage.target && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(storage.target)) throw new Error('Contenedor Azure inválido.');\n    const base = storage.provider === 's3' ? `https://s3.${storage.region}.amazonaws.com` : `https://${storage.account}.blob.core.windows.net`;\n    const s = {meta: JSON.parse(JSON.stringify(meta)), operation, provider: storage.provider, base, storage, phase: '', done:false, files:[], pages:0, lockHeld:false, file, archived:[]};\n    if (operation === 'destinations') {s.phase = 'list'; return s;}\n    if (operation === 'download') {\n      if (!validPath(meta.key) || /(?:^|\\/)\\.idpn/.test(meta.key) || !/\\.(?:pdf|docx?|xlsx?|pptx?)$/i.test(meta.key)) throw new Error('Clave de descarga inválida.');\n      s.phase = 'download'; return s;\n    }\n    if (meta.type_id === 'formulario') throw new Error('Los Formularios no se almacenan.');\n    const policy=meta.is_politica===true;\n    if (policy && (!meta.name || meta.code)) throw new Error('La política requiere nombre, sin código.');\n    if ((!policy && !/^[A-Z0-9]+(?:-[A-Z0-9]+)*-\\d{1,10}$/i.test(meta.code || '')) || !validPath(meta.directory)) throw new Error('Código o directorio inválido.');\n    if (operation === 'inventory') {s.phase = 'list'; return s;}\n    if (!['alta','version','baja','finalizar_baja'].includes(meta.action)) throw new Error('Acción inválida.');\n    if (!/^[a-zA-Z0-9_-]{16,80}$/.test(meta.operation_id || '')) throw new Error('Falta operation_id estable para reintentos.');\n    if ((!['baja','finalizar_baja'].includes(meta.action) || file) && (!file || !mime[file.extension] || !slug(meta.name || ''))) throw new Error('Selecciona un archivo PDF u Office y su nombre.');\n    if(meta.action==='finalizar_baja') {\n      const ref=meta.reference;\n      if(file||!ref||!validPath(ref.key)||!ref.key.startsWith(meta.directory+'/BAJA/')||ref.key.slice((meta.directory+'/BAJA/').length).includes('/')||!/^[a-f0-9]{64}$/.test(ref.sha256)||!Number.isInteger(ref.size)||ref.size<=0)throw new Error('Referencia de baja inválida.');\n      const identity=policy?slug(meta.name):meta.code;\n      if(!ref.key.split('/').pop().toLowerCase().startsWith(identity.toLowerCase()+(policy?'-v':'-')))throw new Error('La referencia pertenece a otro documento.');\n    }\n    s.lockKey = `${meta.directory}/.idpn-lock-${policy?'POLICY-'+slug(meta.name):meta.code.toUpperCase()}.json`;\n    s.manifestKey = `${meta.directory}/.idpn-operations/${meta.operation_id}.json`;\n    s.phase = 'lock';\n    return s;\n  }\n  function validPath(path) {return typeof path === 'string' && path.length > 0 && path.length <= 900 && !path.startsWith('/') && !/[\\\\\\x00-\\x1f]/.test(path) && path.split('/').every(part => part && part !== '.' && part !== '..');}\n  const objectUrl = (s,key) => `${s.base}/${s.storage.target}/${encodePath(key)}`;\n  function request(s) {\n    if (s.done) return null;\n    const r = {method:'GET', url:s.base, query:{}, headers:{}, binary:false, payload:null};\n    const key = value => r.url = objectUrl(s, value);\n    const put = (value,payload,headers={}) => {key(value); r.method='PUT'; r.payload=payload; Object.assign(r.headers,headers); if(s.provider==='azure') r.headers['x-ms-blob-type']='BlockBlob';};\n    switch(s.phase) {\n      case 'list':\n        if(s.provider==='s3') {r.url = s.operation==='destinations' ? s.base+'/' : `${s.base}/${s.storage.target}`; if(s.operation!=='destinations') r.query={'list-type':'2', prefix:s.meta.directory+'/'}; if(s.next)r.query['continuation-token']=s.next;}\n        else {r.url=s.operation==='destinations' ? s.base+'/' : `${s.base}/${s.storage.target}`; r.query=s.operation==='destinations'?{comp:'list'}:{restype:'container',comp:'list',prefix:s.meta.directory+'/'}; if(s.next)r.query.marker=s.next;}\n        break;\n      case 'lock': put(s.lockKey,{json:{operation_id:s.meta.operation_id,created_at:new Date().toISOString()}},{'if-none-match':'*'});break;\n      case 'manifest_get':key(s.manifestKey);break;\n      case 'manifest_put':put(s.manifestKey,{json:s.record},s.manifestEtag?{'if-match':s.manifestEtag}:{'if-none-match':'*'});break;\n      case 'upload_head':key(s.record.key);r.method='HEAD';break;\n      case 'upload':put(s.record.key,{binary:'file'},uploadHeaders(s,s.file));break;\n      case 'reference_get':key(s.meta.reference.key);r.binary=true;break;\n      case 'source_get':key(s.record.old[s.index].key);r.binary=true;r.headers['if-match']=s.record.old[s.index].etag;break;\n      case 'archive_put':put(s.record.old[s.index].destination,{binary:'archive'},uploadHeaders(s,s.record.old[s.index]));break;\n      case 'archive_get':key(s.record.old[s.index].destination);r.binary=true;break;\n      case 'source_delete':key(s.record.old[s.index].key);r.method='DELETE';r.headers['if-match']=s.record.old[s.index].etag;break;\n      case 'unlock':key(s.lockKey);r.method='DELETE';r.headers['if-match']=s.lockEtag;break;\n      case 'download':key(s.meta.key);r.binary=true;break;\n      default:throw new Error(`Fase no reconocida: ${s.phase}`);\n    }\n    return r;\n  }\n  function uploadHeaders(s,file) {\n    const headers={'if-none-match':'*','content-md5':file.md5,'content-type':mime[file.extension]||file.mime_type||'application/octet-stream','content-disposition':'inline'};\n    if(s.provider==='azure'){headers['x-ms-blob-content-disposition']='inline';delete headers['content-disposition'];}\n    headers[s.provider==='s3'?'x-amz-meta-idpn-sha256':'x-ms-meta-idpn_sha256']=file.sha256;\n    headers[s.provider==='s3'?'x-amz-meta-idpn-operation':'x-ms-meta-idpn_operation']=s.meta.operation_id;\n    return headers;\n  }\n  function checkpoint(s,next) {s.afterManifest=next;s.phase='manifest_put';}\n  function finish(s,result,status=200) {\n    s.result=result;s.status=status;\n    if(s.lockHeld&&s.lockEtag)s.phase='unlock';\n    else {if(s.lockHeld){s.result={...result,success:false,lock_key:s.lockKey,error:'Bloqueo sin ETag; requiere recuperación manual.'};s.status=502;}s.done=true;}\n  }\n  function fail(s,error,status=502) {finish(s,{success:false,error:String(error),operation_id:s.meta.operation_id,partial:!!s.record?.uploaded,key:s.record?.key,version:s.record?.version,archived:s.archived,lock_key:s.lockHeld?s.lockKey:undefined},status);}\n  function beginArchive(s) {\n    const next = s.record.old.findIndex(item=>!item.archived);\n    if(next===-1) {s.record.phase='complete';checkpoint(s,'complete');}\n    else {s.index=next;s.phase='source_get';}\n  }\n  function result(s) {\n    let {version,filename,key}=s.record;\n    let name=s.meta.name||'';\n    if(s.meta.action==='baja'&&!s.record.uploaded) {\n      const rank=item=>Number(/-v(\\d{3,})\\.[^.]+$/i.exec(item.key)?.[1]||0);\n      const latest=s.record.old.filter(item=>item.archived).sort((a,b)=>rank(b)-rank(a)||b.key.localeCompare(a.key))[0];\n      if(!latest)throw new Error('No hay un archivo archivado verificado para publicar la baja.');\n      key=latest.destination;filename=key.split('/').pop();\n      version=/-v(\\d{3,})\\.[^.]+$/i.exec(filename)?.[1];\n      version=version?'v'+version:null;\n      name=name||filename.slice(s.meta.is_politica?0:s.meta.code.length+1).replace(/-v\\d{3,}(?=\\.)/i,'').replace(/\\.[^.]+$/,'').replace(/-/g,' ');\n    }\n    return {success:true,operation_id:s.meta.operation_id,code:s.meta.code,action:s.meta.action,\n      version,filename,key,name,sha256:s.record.sha256,size:s.record.size,storage:s.storage,\n      url:key?objectUrl(s,key):null,\n      download_url:key&&s.meta.download_base_url ? s.meta.download_base_url+'?'+new URLSearchParams({provider:s.provider,target:s.storage.target,region:s.storage.region||'',account:s.storage.account||'',key}).toString():null,\n      archived:s.record.old.filter(item=>item.archived).map(item=>({source_key:item.key,key:item.destination}))};\n  }\n  function allocate(s) {\n    const identity=s.meta.is_politica?slug(s.meta.name):s.meta.code;\n    const escaped=identity.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&');\n    const versionPattern=new RegExp('^'+escaped+(s.meta.is_politica?'':'-.+')+'-v(\\\\d{3,})\\\\.(?:pdf|docx?|xlsx?|pptx?)$','i');\n    const legacyPattern=new RegExp('^'+escaped+(s.meta.is_politica?'':'-.+')+'\\\\.(?:pdf|docx?|xlsx?|pptx?)$','i');\n    const files=s.files.filter(item=>{const relative=item.key.slice(s.meta.directory.length+1);return item.key.startsWith(s.meta.directory+'/')&&(!relative.includes('/')||/^BAJA\\/[^/]+$/.test(relative))&&(versionPattern.test(relative.split('/').pop())||legacyPattern.test(relative.split('/').pop()));});\n    if(s.meta.action==='alta'&&files.length)throw new Error('El documento existe; selecciona Nueva versión.');\n    if(s.meta.action==='version'&&!files.length)throw new Error('El documento no existe; selecciona Alta.');\n    const old=files.filter(item=>!item.key.slice(s.meta.directory.length+1).startsWith('BAJA/')).map(item=>({...item,destination:s.meta.directory+'/BAJA/'+item.key.split('/').pop(),archived:false}));\n    if(s.meta.action==='baja'&&!s.file&&!old.length)throw new Error('No hay versiones activas para dar de baja.');\n    const next=Math.max(0,...files.map(item=>Number(versionPattern.exec(item.key.split('/').pop())?.[1]||0)))+1;\n    if(s.meta.action==='finalizar_baja') {\n      s.record={operation_id:s.meta.operation_id,action:s.meta.action,code:s.meta.code,directory:s.meta.directory,policy_name:s.meta.is_politica?slug(s.meta.name):null,sha256:null,reference:s.meta.reference,version:s.meta.reference.version,filename:s.meta.reference.key.split('/').pop(),key:s.meta.reference.key,phase:'reserved',uploaded:false,old};\n      checkpoint(s,'archive');return;\n    }\n    const upload=s.meta.action!=='baja'||!!s.file;\n    const version=!upload?null:'v'+String(next).padStart(3,'0');\n    const filename=version?`${s.meta.is_politica?'':s.meta.code+'-'}${slug(s.meta.name)}-${version}.${s.file.extension}`:null;\n    s.record={operation_id:s.meta.operation_id,action:s.meta.action,code:s.meta.code,directory:s.meta.directory,\n      policy_name:s.meta.is_politica?slug(s.meta.name):null,sha256:s.file?.sha256||null,size:s.file?.size||null,version,filename,key:filename?s.meta.directory+(s.meta.action==='baja'?'/BAJA/':'/')+filename:null,\n      phase:'reserved',uploaded:false,old:s.meta.action==='alta'||(s.meta.action==='baja'&&s.meta.defer_archive===true)?[]:old};\n    checkpoint(s,upload?'upload_head':'archive');\n  }\n  function transition(s,response,file=null) {\n    const status=Number(response.statusCode||0);\n    const headers=Object.fromEntries(Object.entries(response.headers||{}).map(([k,v])=>[k.toLowerCase(),String(v)]));\n    const ok=status>=200&&status<300;\n    const body=response.body||'';\n    try {\n      switch(s.phase) {\n        case 'lock':\n          if(!ok){fail(s,status===412?'El documento está siendo procesado o tiene un bloqueo pendiente.':'No se pudo adquirir el bloqueo.',status===412?409:502);break;}\n          s.lockHeld=true;s.lockEtag=headers.etag;if(!s.lockEtag)throw new Error('El bloqueo no devolvió ETag. Requiere recuperación manual.');s.phase='manifest_get';break;\n        case 'manifest_get':\n          if(status===404){s.phase=s.meta.action==='finalizar_baja'?'reference_get':'list';break;}\n          if(!ok)throw new Error('No se pudo consultar la operación anterior.');\n          s.record=JSON.parse(body);s.manifestEtag=headers.etag;\n          if(!s.manifestEtag||s.record.operation_id!==s.meta.operation_id||s.record.action!==s.meta.action||s.record.code!==s.meta.code||s.record.directory!==s.meta.directory||(s.meta.is_politica&&s.record.policy_name!==slug(s.meta.name))||s.record.sha256!==(s.file?.sha256||null)||(s.meta.action==='finalizar_baja'&&JSON.stringify(s.record.reference)!==JSON.stringify(s.meta.reference)))throw new Error('operation_id pertenece a otra solicitud.');\n          if(s.record.phase==='complete')finish(s,result(s));\n          else s.phase=s.meta.action==='finalizar_baja'?'reference_get':s.meta.action==='baja'&&!s.file?'archive_resume':'upload_head';\n          if(s.phase==='archive_resume')beginArchive(s);break;\n        case 'list': {\n          if(!ok)throw new Error('No se pudo listar el almacenamiento.');\n          const page=listing(body,s.provider,s.operation==='destinations');s.files.push(...page.entries);\n          if(++s.pages>1000)throw new Error('Inventario demasiado grande.');\n          if(page.next){if(page.next===s.next)throw new Error('Token de paginación repetido.');s.next=page.next;break;}\n          if(s.operation==='inventory')finish(s,{success:true,complete:true,files:s.files});\n          else if(s.operation==='destinations')finish(s,{success:true,complete:true,targets:s.files});\n          else allocate(s);break;\n        }\n        case 'manifest_put':\n          if(!ok||!headers.etag)throw new Error('No se pudo guardar el estado de la operación.');\n          s.manifestEtag=headers.etag;\n          if(s.afterManifest==='archive')beginArchive(s);\n          else if(s.afterManifest==='complete')finish(s,result(s));\n          else s.phase=s.afterManifest;break;\n        case 'upload_head': {\n          if(status===404){s.phase='upload';break;}\n          if(!ok)throw new Error('No se pudo verificar el archivo nuevo.');\n          const digest=headers[s.provider==='s3'?'x-amz-meta-idpn-sha256':'x-ms-meta-idpn_sha256'];\n          if(digest!==s.file.sha256||Number(headers['content-length'])!==s.file.size)throw new Error('La clave de la versión existe con otro contenido.');\n          s.record.uploaded=true;checkpoint(s,'archive');break;\n        }\n        case 'upload':\n          if(!ok)throw new Error(status===412?'La versión ya existe; no se sobrescribió.':'Falló la subida.');\n          s.phase='upload_head';break;\n        case 'reference_get':\n          if(!ok||!file||file.sha256!==s.meta.reference.sha256||file.size!==s.meta.reference.size)throw new Error('El archivo testigo falta o cambió; no se archivaron antecedentes.');\n          if(s.record)beginArchive(s);else s.phase='list';break;\n        case 'source_get': {\n          const old=s.record.old[s.index];\n          if(status===404){if(!old.sha256)throw new Error('El antecedente desapareció sin una copia verificada.');s.phase='archive_get';break;}\n          if(!ok||!file)throw new Error('No se pudo leer el antecedente o cambió su ETag.');\n          if(old.sha256&&old.sha256!==file.sha256)throw new Error('El contenido del antecedente cambió.');\n          Object.assign(old,file);\n          if(s.meta.action==='finalizar_baja'&&file.sha256===s.meta.reference.sha256&&file.size===s.meta.reference.size) {old.destination=s.meta.reference.key;old.duplicate=true;checkpoint(s,'archive_get');}\n          else checkpoint(s,'archive_put');break;\n        }\n        case 'archive_put':\n          if(!ok&&status!==412)throw new Error('Falló la copia a BAJA; se conservó el original.');\n          s.phase='archive_get';break;\n        case 'archive_get': {\n          const old=s.record.old[s.index];\n          if(!ok||!file||old.sha256!==file.sha256||old.size!==file.size)throw new Error('La copia en BAJA no coincide; se conservó el original.');\n          s.phase='source_delete';break;\n        }\n        case 'source_delete':\n          if(!ok&&status!==404)throw new Error('La copia está en BAJA, pero no se pudo retirar el original.');\n          s.record.old[s.index].archived=true;s.archived.push(s.record.old[s.index].destination);checkpoint(s,'archive');break;\n        case 'unlock':\n          if(!ok&&status!==404){s.result={...s.result,success:false,error:'No se pudo liberar el bloqueo. Requiere revisar su ETag antes de retirarlo.',lock_key:s.lockKey,partial:!!s.record?.uploaded};s.status=502;}\n          s.lockHeld=false;s.done=true;break;\n        case 'download':\n          if(!ok||!file)throw new Error('Archivo no disponible.');\n          s.download=true;finish(s,{success:true,filename:s.meta.key.split('/').pop(),mime_type:file.mime_type||mime[file.extension]||'application/octet-stream'});break;\n        default:throw new Error('Transición desconocida.');\n      }\n    } catch(error) {fail(s,error.message);}\n    return s;\n  }\n  return {initialize,request,transition,listing,fail,mime};\n})();\n\nconst crypto = require('crypto');\nasync function describeBinary(field) {\n  const bytes = await this.helpers.getBinaryDataBuffer(0, field);\n  if (bytes.length > 15 * 1024 * 1024) throw new Error('El archivo excede el límite preparado de 15 MiB.');\n  const binary = $input.first().binary[field];\n  const filename = binary.fileName || '';\n  return {size:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),\n    md5:crypto.createHash('md5').update(bytes).digest('base64'),\n    extension:filename.split('.').pop().toLowerCase(),mime_type:binary.mimeType};\n}\n\nconst input = $input.first();\ntry {\n  let meta;\n  if (input.json.httpMethod === 'GET' || input.json.query?.key) {\n    const q = input.json.query;\n    meta = {operation:'download',key:q.key,storage:{provider:q.provider,target:q.target,region:q.region,account:q.account}};\n  } else {\n    meta = input.json.body || {};\n    if (meta.metadata) meta = typeof meta.metadata === 'string' ? JSON.parse(meta.metadata) : meta.metadata;\n  }\n  const binary = {...input.binary};\n  const keys = Object.keys(binary).filter(key => /^file(?:\\d+)?$/.test(key));\n  if (keys.length > 1) throw new Error('Solo se admite un archivo por operación.');\n  let file = null;\n  if (keys.length) {\n    file = await describeBinary.call(this, keys[0]);\n    binary.file = binary[keys[0]];\n    Object.keys(binary).filter(key => key !== 'file').forEach(key => delete binary[key]);\n  }\n  if (input.json.webhookUrl) {\n    const url = new URL(input.json.webhookUrl);\n    meta.download_base_url = url.origin + url.pathname.replace(/idpn-documentos$/, 'idpn-documentos-descarga');\n  }\n  return [{json:{state:IDPN.initialize(meta,file)},binary,pairedItem:{item:0}}];\n} catch(error) {\n  return [{json:{state:{done:true,status:400,result:{success:false,error:error.message}}},pairedItem:{item:0}}];\n}\n"
+      }
+    },
+    {
+      "id": "4cb42535-5e80-5804-8f86-275b9196c8da",
+      "name": "Solicitud actual",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "/* IDPN storage protocol. No credentials or network access live in this module. */\nconst IDPN = (() => {\n  const mime = {pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};\n  const encodePath = value => value.split('/').map(encodeURIComponent).join('/');\n  const slug = value => value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');\n  function xmlDecode(value) {\n    return value.replace(/&(#x[0-9a-f]+|#\\d+|amp|lt|gt|quot|apos);/gi, (_, entity) => {\n      if (entity[0] === '#') return String.fromCodePoint(entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)));\n      return {amp:'&', lt:'<', gt:'>', quot:'\"', apos:\"'\"}[entity.toLowerCase()];\n    });\n  }\n  const tag = (xml, name) => {const match = xml.match(new RegExp(`<${name}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/${name}>`)); return match ? xmlDecode(match[1].replace(/^<!\\[CDATA\\[([\\s\\S]*)\\]\\]>$/, '$1')) : '';};\n  function listing(body, provider, destinations = false) {\n    if (typeof body !== 'string' || /<!DOCTYPE|<!ENTITY/i.test(body)) throw new Error('Listado XML inválido.');\n    const root = destinations ? (provider === 's3' ? 'ListAllMyBucketsResult' : 'EnumerationResults') : (provider === 's3' ? 'ListBucketResult' : 'EnumerationResults');\n    if (!new RegExp(`<${root}(?:\\\\s|>)`).test(body) || !body.includes(`</${root}>`)) throw new Error('Respuesta de inventario incompleta.');\n    const itemTag = destinations ? (provider === 's3' ? 'Bucket' : 'Container') : (provider === 's3' ? 'Contents' : 'Blob');\n    const entries = [...body.matchAll(new RegExp(`<${itemTag}>([\\\\s\\\\S]*?)<\\\\/${itemTag}>`, 'g'))].map(match => {\n      const item = match[1];\n      if (destinations) return {name: tag(item, 'Name')};\n      const key = tag(item, provider === 's3' ? 'Key' : 'Name');\n      const etag = tag(item, provider === 's3' ? 'ETag' : 'Etag');\n      const sizeValue = tag(item, provider === 's3' ? 'Size' : 'Content-Length');\n      if (!key || !etag || !/^\\d+$/.test(sizeValue)) throw new Error('Objeto sin key, etag o tamaño.');\n      return {key, etag, size: Number(sizeValue)};\n    });\n    const next = tag(body, provider === 's3' ? 'NextContinuationToken' : 'NextMarker') || (destinations && provider === 's3' ? tag(body,'ContinuationToken') : '');\n    if (provider === 's3' && tag(body, 'IsTruncated') === 'true' && !next) throw new Error('S3 omitió el token de paginación.');\n    return {entries, next};\n  }\n  function initialize(meta, file = null) {\n    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new Error('Metadatos inválidos.');\n    const storage = meta.storage || {};\n    if (!['s3','azure'].includes(storage.provider)) throw new Error('Selecciona S3 o Azure.');\n    if (storage.provider === 's3' && !/^[a-z]{2}(?:-[a-z]+)+-\\d+$/.test(storage.region || '')) throw new Error('Falta la región de S3.');\n    if (storage.provider === 'azure' && !/^[a-z0-9]{3,24}$/.test(storage.account || '')) throw new Error('Falta la cuenta de Azure.');\n    const operation = meta.operation || 'document';\n    if (!['inventory','document','destinations','download'].includes(operation)) throw new Error('Operación no admitida.');\n    if (operation !== 'destinations' && !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(storage.target || '')) throw new Error('Bucket/contenedor inválido.');\n    if (storage.provider === 'azure' && storage.target && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(storage.target)) throw new Error('Contenedor Azure inválido.');\n    const base = storage.provider === 's3' ? `https://s3.${storage.region}.amazonaws.com` : `https://${storage.account}.blob.core.windows.net`;\n    const s = {meta: JSON.parse(JSON.stringify(meta)), operation, provider: storage.provider, base, storage, phase: '', done:false, files:[], pages:0, lockHeld:false, file, archived:[]};\n    if (operation === 'destinations') {s.phase = 'list'; return s;}\n    if (operation === 'download') {\n      if (!validPath(meta.key) || /(?:^|\\/)\\.idpn/.test(meta.key) || !/\\.(?:pdf|docx?|xlsx?|pptx?)$/i.test(meta.key)) throw new Error('Clave de descarga inválida.');\n      s.phase = 'download'; return s;\n    }\n    if (meta.type_id === 'formulario') throw new Error('Los Formularios no se almacenan.');\n    const policy=meta.is_politica===true;\n    if (policy && (!meta.name || meta.code)) throw new Error('La política requiere nombre, sin código.');\n    if ((!policy && !/^[A-Z0-9]+(?:-[A-Z0-9]+)*-\\d{1,10}$/i.test(meta.code || '')) || !validPath(meta.directory)) throw new Error('Código o directorio inválido.');\n    if (operation === 'inventory') {s.phase = 'list'; return s;}\n    if (!['alta','version','baja','finalizar_baja'].includes(meta.action)) throw new Error('Acción inválida.');\n    if (!/^[a-zA-Z0-9_-]{16,80}$/.test(meta.operation_id || '')) throw new Error('Falta operation_id estable para reintentos.');\n    if ((!['baja','finalizar_baja'].includes(meta.action) || file) && (!file || !mime[file.extension] || !slug(meta.name || ''))) throw new Error('Selecciona un archivo PDF u Office y su nombre.');\n    if(meta.action==='finalizar_baja') {\n      const ref=meta.reference;\n      if(file||!ref||!validPath(ref.key)||!ref.key.startsWith(meta.directory+'/BAJA/')||ref.key.slice((meta.directory+'/BAJA/').length).includes('/')||!/^[a-f0-9]{64}$/.test(ref.sha256)||!Number.isInteger(ref.size)||ref.size<=0)throw new Error('Referencia de baja inválida.');\n      const identity=policy?slug(meta.name):meta.code;\n      if(!ref.key.split('/').pop().toLowerCase().startsWith(identity.toLowerCase()+(policy?'-v':'-')))throw new Error('La referencia pertenece a otro documento.');\n    }\n    s.lockKey = `${meta.directory}/.idpn-lock-${policy?'POLICY-'+slug(meta.name):meta.code.toUpperCase()}.json`;\n    s.manifestKey = `${meta.directory}/.idpn-operations/${meta.operation_id}.json`;\n    s.phase = 'lock';\n    return s;\n  }\n  function validPath(path) {return typeof path === 'string' && path.length > 0 && path.length <= 900 && !path.startsWith('/') && !/[\\\\\\x00-\\x1f]/.test(path) && path.split('/').every(part => part && part !== '.' && part !== '..');}\n  const objectUrl = (s,key) => `${s.base}/${s.storage.target}/${encodePath(key)}`;\n  function request(s) {\n    if (s.done) return null;\n    const r = {method:'GET', url:s.base, query:{}, headers:{}, binary:false, payload:null};\n    const key = value => r.url = objectUrl(s, value);\n    const put = (value,payload,headers={}) => {key(value); r.method='PUT'; r.payload=payload; Object.assign(r.headers,headers); if(s.provider==='azure') r.headers['x-ms-blob-type']='BlockBlob';};\n    switch(s.phase) {\n      case 'list':\n        if(s.provider==='s3') {r.url = s.operation==='destinations' ? s.base+'/' : `${s.base}/${s.storage.target}`; if(s.operation!=='destinations') r.query={'list-type':'2', prefix:s.meta.directory+'/'}; if(s.next)r.query['continuation-token']=s.next;}\n        else {r.url=s.operation==='destinations' ? s.base+'/' : `${s.base}/${s.storage.target}`; r.query=s.operation==='destinations'?{comp:'list'}:{restype:'container',comp:'list',prefix:s.meta.directory+'/'}; if(s.next)r.query.marker=s.next;}\n        break;\n      case 'lock': put(s.lockKey,{json:{operation_id:s.meta.operation_id,created_at:new Date().toISOString()}},{'if-none-match':'*'});break;\n      case 'manifest_get':key(s.manifestKey);break;\n      case 'manifest_put':put(s.manifestKey,{json:s.record},s.manifestEtag?{'if-match':s.manifestEtag}:{'if-none-match':'*'});break;\n      case 'upload_head':key(s.record.key);r.method='HEAD';break;\n      case 'upload':put(s.record.key,{binary:'file'},uploadHeaders(s,s.file));break;\n      case 'reference_get':key(s.meta.reference.key);r.binary=true;break;\n      case 'source_get':key(s.record.old[s.index].key);r.binary=true;r.headers['if-match']=s.record.old[s.index].etag;break;\n      case 'archive_put':put(s.record.old[s.index].destination,{binary:'archive'},uploadHeaders(s,s.record.old[s.index]));break;\n      case 'archive_get':key(s.record.old[s.index].destination);r.binary=true;break;\n      case 'source_delete':key(s.record.old[s.index].key);r.method='DELETE';r.headers['if-match']=s.record.old[s.index].etag;break;\n      case 'unlock':key(s.lockKey);r.method='DELETE';r.headers['if-match']=s.lockEtag;break;\n      case 'download':key(s.meta.key);r.binary=true;break;\n      default:throw new Error(`Fase no reconocida: ${s.phase}`);\n    }\n    return r;\n  }\n  function uploadHeaders(s,file) {\n    const headers={'if-none-match':'*','content-md5':file.md5,'content-type':mime[file.extension]||file.mime_type||'application/octet-stream','content-disposition':'inline'};\n    if(s.provider==='azure'){headers['x-ms-blob-content-disposition']='inline';delete headers['content-disposition'];}\n    headers[s.provider==='s3'?'x-amz-meta-idpn-sha256':'x-ms-meta-idpn_sha256']=file.sha256;\n    headers[s.provider==='s3'?'x-amz-meta-idpn-operation':'x-ms-meta-idpn_operation']=s.meta.operation_id;\n    return headers;\n  }\n  function checkpoint(s,next) {s.afterManifest=next;s.phase='manifest_put';}\n  function finish(s,result,status=200) {\n    s.result=result;s.status=status;\n    if(s.lockHeld&&s.lockEtag)s.phase='unlock';\n    else {if(s.lockHeld){s.result={...result,success:false,lock_key:s.lockKey,error:'Bloqueo sin ETag; requiere recuperación manual.'};s.status=502;}s.done=true;}\n  }\n  function fail(s,error,status=502) {finish(s,{success:false,error:String(error),operation_id:s.meta.operation_id,partial:!!s.record?.uploaded,key:s.record?.key,version:s.record?.version,archived:s.archived,lock_key:s.lockHeld?s.lockKey:undefined},status);}\n  function beginArchive(s) {\n    const next = s.record.old.findIndex(item=>!item.archived);\n    if(next===-1) {s.record.phase='complete';checkpoint(s,'complete');}\n    else {s.index=next;s.phase='source_get';}\n  }\n  function result(s) {\n    let {version,filename,key}=s.record;\n    let name=s.meta.name||'';\n    if(s.meta.action==='baja'&&!s.record.uploaded) {\n      const rank=item=>Number(/-v(\\d{3,})\\.[^.]+$/i.exec(item.key)?.[1]||0);\n      const latest=s.record.old.filter(item=>item.archived).sort((a,b)=>rank(b)-rank(a)||b.key.localeCompare(a.key))[0];\n      if(!latest)throw new Error('No hay un archivo archivado verificado para publicar la baja.');\n      key=latest.destination;filename=key.split('/').pop();\n      version=/-v(\\d{3,})\\.[^.]+$/i.exec(filename)?.[1];\n      version=version?'v'+version:null;\n      name=name||filename.slice(s.meta.is_politica?0:s.meta.code.length+1).replace(/-v\\d{3,}(?=\\.)/i,'').replace(/\\.[^.]+$/,'').replace(/-/g,' ');\n    }\n    return {success:true,operation_id:s.meta.operation_id,code:s.meta.code,action:s.meta.action,\n      version,filename,key,name,sha256:s.record.sha256,size:s.record.size,storage:s.storage,\n      url:key?objectUrl(s,key):null,\n      download_url:key&&s.meta.download_base_url ? s.meta.download_base_url+'?'+new URLSearchParams({provider:s.provider,target:s.storage.target,region:s.storage.region||'',account:s.storage.account||'',key}).toString():null,\n      archived:s.record.old.filter(item=>item.archived).map(item=>({source_key:item.key,key:item.destination}))};\n  }\n  function allocate(s) {\n    const identity=s.meta.is_politica?slug(s.meta.name):s.meta.code;\n    const escaped=identity.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&');\n    const versionPattern=new RegExp('^'+escaped+(s.meta.is_politica?'':'-.+')+'-v(\\\\d{3,})\\\\.(?:pdf|docx?|xlsx?|pptx?)$','i');\n    const legacyPattern=new RegExp('^'+escaped+(s.meta.is_politica?'':'-.+')+'\\\\.(?:pdf|docx?|xlsx?|pptx?)$','i');\n    const files=s.files.filter(item=>{const relative=item.key.slice(s.meta.directory.length+1);return item.key.startsWith(s.meta.directory+'/')&&(!relative.includes('/')||/^BAJA\\/[^/]+$/.test(relative))&&(versionPattern.test(relative.split('/').pop())||legacyPattern.test(relative.split('/').pop()));});\n    if(s.meta.action==='alta'&&files.length)throw new Error('El documento existe; selecciona Nueva versión.');\n    if(s.meta.action==='version'&&!files.length)throw new Error('El documento no existe; selecciona Alta.');\n    const old=files.filter(item=>!item.key.slice(s.meta.directory.length+1).startsWith('BAJA/')).map(item=>({...item,destination:s.meta.directory+'/BAJA/'+item.key.split('/').pop(),archived:false}));\n    if(s.meta.action==='baja'&&!s.file&&!old.length)throw new Error('No hay versiones activas para dar de baja.');\n    const next=Math.max(0,...files.map(item=>Number(versionPattern.exec(item.key.split('/').pop())?.[1]||0)))+1;\n    if(s.meta.action==='finalizar_baja') {\n      s.record={operation_id:s.meta.operation_id,action:s.meta.action,code:s.meta.code,directory:s.meta.directory,policy_name:s.meta.is_politica?slug(s.meta.name):null,sha256:null,reference:s.meta.reference,version:s.meta.reference.version,filename:s.meta.reference.key.split('/').pop(),key:s.meta.reference.key,phase:'reserved',uploaded:false,old};\n      checkpoint(s,'archive');return;\n    }\n    const upload=s.meta.action!=='baja'||!!s.file;\n    const version=!upload?null:'v'+String(next).padStart(3,'0');\n    const filename=version?`${s.meta.is_politica?'':s.meta.code+'-'}${slug(s.meta.name)}-${version}.${s.file.extension}`:null;\n    s.record={operation_id:s.meta.operation_id,action:s.meta.action,code:s.meta.code,directory:s.meta.directory,\n      policy_name:s.meta.is_politica?slug(s.meta.name):null,sha256:s.file?.sha256||null,size:s.file?.size||null,version,filename,key:filename?s.meta.directory+(s.meta.action==='baja'?'/BAJA/':'/')+filename:null,\n      phase:'reserved',uploaded:false,old:s.meta.action==='alta'||(s.meta.action==='baja'&&s.meta.defer_archive===true)?[]:old};\n    checkpoint(s,upload?'upload_head':'archive');\n  }\n  function transition(s,response,file=null) {\n    const status=Number(response.statusCode||0);\n    const headers=Object.fromEntries(Object.entries(response.headers||{}).map(([k,v])=>[k.toLowerCase(),String(v)]));\n    const ok=status>=200&&status<300;\n    const body=response.body||'';\n    try {\n      switch(s.phase) {\n        case 'lock':\n          if(!ok){fail(s,status===412?'El documento está siendo procesado o tiene un bloqueo pendiente.':'No se pudo adquirir el bloqueo.',status===412?409:502);break;}\n          s.lockHeld=true;s.lockEtag=headers.etag;if(!s.lockEtag)throw new Error('El bloqueo no devolvió ETag. Requiere recuperación manual.');s.phase='manifest_get';break;\n        case 'manifest_get':\n          if(status===404){s.phase=s.meta.action==='finalizar_baja'?'reference_get':'list';break;}\n          if(!ok)throw new Error('No se pudo consultar la operación anterior.');\n          s.record=JSON.parse(body);s.manifestEtag=headers.etag;\n          if(!s.manifestEtag||s.record.operation_id!==s.meta.operation_id||s.record.action!==s.meta.action||s.record.code!==s.meta.code||s.record.directory!==s.meta.directory||(s.meta.is_politica&&s.record.policy_name!==slug(s.meta.name))||s.record.sha256!==(s.file?.sha256||null)||(s.meta.action==='finalizar_baja'&&JSON.stringify(s.record.reference)!==JSON.stringify(s.meta.reference)))throw new Error('operation_id pertenece a otra solicitud.');\n          if(s.record.phase==='complete')finish(s,result(s));\n          else s.phase=s.meta.action==='finalizar_baja'?'reference_get':s.meta.action==='baja'&&!s.file?'archive_resume':'upload_head';\n          if(s.phase==='archive_resume')beginArchive(s);break;\n        case 'list': {\n          if(!ok)throw new Error('No se pudo listar el almacenamiento.');\n          const page=listing(body,s.provider,s.operation==='destinations');s.files.push(...page.entries);\n          if(++s.pages>1000)throw new Error('Inventario demasiado grande.');\n          if(page.next){if(page.next===s.next)throw new Error('Token de paginación repetido.');s.next=page.next;break;}\n          if(s.operation==='inventory')finish(s,{success:true,complete:true,files:s.files});\n          else if(s.operation==='destinations')finish(s,{success:true,complete:true,targets:s.files});\n          else allocate(s);break;\n        }\n        case 'manifest_put':\n          if(!ok||!headers.etag)throw new Error('No se pudo guardar el estado de la operación.');\n          s.manifestEtag=headers.etag;\n          if(s.afterManifest==='archive')beginArchive(s);\n          else if(s.afterManifest==='complete')finish(s,result(s));\n          else s.phase=s.afterManifest;break;\n        case 'upload_head': {\n          if(status===404){s.phase='upload';break;}\n          if(!ok)throw new Error('No se pudo verificar el archivo nuevo.');\n          const digest=headers[s.provider==='s3'?'x-amz-meta-idpn-sha256':'x-ms-meta-idpn_sha256'];\n          if(digest!==s.file.sha256||Number(headers['content-length'])!==s.file.size)throw new Error('La clave de la versión existe con otro contenido.');\n          s.record.uploaded=true;checkpoint(s,'archive');break;\n        }\n        case 'upload':\n          if(!ok)throw new Error(status===412?'La versión ya existe; no se sobrescribió.':'Falló la subida.');\n          s.phase='upload_head';break;\n        case 'reference_get':\n          if(!ok||!file||file.sha256!==s.meta.reference.sha256||file.size!==s.meta.reference.size)throw new Error('El archivo testigo falta o cambió; no se archivaron antecedentes.');\n          if(s.record)beginArchive(s);else s.phase='list';break;\n        case 'source_get': {\n          const old=s.record.old[s.index];\n          if(status===404){if(!old.sha256)throw new Error('El antecedente desapareció sin una copia verificada.');s.phase='archive_get';break;}\n          if(!ok||!file)throw new Error('No se pudo leer el antecedente o cambió su ETag.');\n          if(old.sha256&&old.sha256!==file.sha256)throw new Error('El contenido del antecedente cambió.');\n          Object.assign(old,file);\n          if(s.meta.action==='finalizar_baja'&&file.sha256===s.meta.reference.sha256&&file.size===s.meta.reference.size) {old.destination=s.meta.reference.key;old.duplicate=true;checkpoint(s,'archive_get');}\n          else checkpoint(s,'archive_put');break;\n        }\n        case 'archive_put':\n          if(!ok&&status!==412)throw new Error('Falló la copia a BAJA; se conservó el original.');\n          s.phase='archive_get';break;\n        case 'archive_get': {\n          const old=s.record.old[s.index];\n          if(!ok||!file||old.sha256!==file.sha256||old.size!==file.size)throw new Error('La copia en BAJA no coincide; se conservó el original.');\n          s.phase='source_delete';break;\n        }\n        case 'source_delete':\n          if(!ok&&status!==404)throw new Error('La copia está en BAJA, pero no se pudo retirar el original.');\n          s.record.old[s.index].archived=true;s.archived.push(s.record.old[s.index].destination);checkpoint(s,'archive');break;\n        case 'unlock':\n          if(!ok&&status!==404){s.result={...s.result,success:false,error:'No se pudo liberar el bloqueo. Requiere revisar su ETag antes de retirarlo.',lock_key:s.lockKey,partial:!!s.record?.uploaded};s.status=502;}\n          s.lockHeld=false;s.done=true;break;\n        case 'download':\n          if(!ok||!file)throw new Error('Archivo no disponible.');\n          s.download=true;finish(s,{success:true,filename:s.meta.key.split('/').pop(),mime_type:file.mime_type||mime[file.extension]||'application/octet-stream'});break;\n        default:throw new Error('Transición desconocida.');\n      }\n    } catch(error) {fail(s,error.message);}\n    return s;\n  }\n  return {initialize,request,transition,listing,fail,mime};\n})();\n\nconst input = $input.first();\nconst state = input.json.state;\nconst binary = {...input.binary};\nlet request;\ntry {request = IDPN.request(state);} catch(error) {IDPN.fail(state,error.message);request=IDPN.request(state);}\nif (request?.payload) {\n  if (request.payload.json) {\n    const bytes=Buffer.from(JSON.stringify(request.payload.json));\n    binary.payload={data:bytes.toString('base64'),mimeType:'application/json',fileName:'state.json'};\n    request.headers['content-type']='application/json';\n    request.headers['content-length']=String(bytes.length);\n  } else {\n    binary.payload=binary[request.payload.binary];\n    if (!binary.payload) {IDPN.fail(state,'No se encontró el binario requerido.');request=IDPN.request(state);}\n    else request.headers['content-length']=String(request.payload.binary==='file'?state.file.size:state.record.old[state.index].size);\n  }\n}\nstate.request=request;\nreturn [{json:{state},binary,pairedItem:{item:0}}];\n"
+      }
+    },
+    {
+      "id": "daa3e227-79d0-5107-9e5e-fb08fec1fde3",
+      "name": "Terminado",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "f81f2195-f76a-54aa-8f37-f349f06bdd6a",
+              "leftValue": "={{ $json.state.done === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "65029530-054a-5948-a42d-4d217e40adf7",
+      "name": "Respuesta binaria",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        940,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "175ef69e-82cd-5516-8f37-5e2115be08d5",
+              "leftValue": "={{ $json.state.download === true && $json.state.result.success === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "bbfa512e-a949-55f7-bcba-5cfa4879a286",
+      "name": "Responder JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1180,
+        -140
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.state.result }}",
+        "options": {
+          "responseCode": "={{ $json.state.status || 200 }}"
+        }
+      }
+    },
+    {
+      "id": "2942686f-2ec3-5a93-814d-e99a0c7e2423",
+      "name": "Descargar archivo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1180,
+        -320
+      ],
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "download",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "={{ $json.state.result.mime_type }}"
+              },
+              {
+                "name": "Content-Disposition",
+                "value": "={{ \"attachment; filename*=UTF-8''\" + encodeURIComponent($json.state.result.filename) }}"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "0fd30388-8f6f-53b8-b87f-d17b0d64673b",
+      "name": "Proveedor S3",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        940,
+        180
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "a7b68e49-8fdd-567c-bfe5-b299c3120f7e",
+              "leftValue": "={{ $json.state.provider === 's3' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1bd4a10b-58cd-590e-970d-5e6083b8ac3c",
+      "name": "Lectura pública",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        850,
+        380
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "76248636-0f58-58b8-8e50-0e34134ca58c",
+              "leftValue": "={{ $json.state.operation === 'download' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4b2f7ca9-4a95-5ef6-8498-f1f7f1068144",
+      "name": "S3 archivo",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "002e939c-6e35-5d33-8194-ff6938f7f974",
+              "leftValue": "={{ $json.state.request.binary === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8124a9f5-ba19-538d-ab98-2127a3db95c9",
+      "name": "Azure archivo",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        420
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "d6b46636-054c-53b8-afdb-98f32fc8db5f",
+              "leftValue": "={{ $json.state.request.binary === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "51d82024-a05c-509b-882d-9d60f3c16edd",
+      "name": "S3 operación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1430,
+        0
+      ],
+      "parameters": {
+        "method": "={{ $json.state.request.method }}",
+        "url": "={{ $json.state.request.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "aws",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json.state.request.query) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.state.request.headers) }}",
+        "sendBody": "={{ $json.state.request.payload !== null }}",
+        "contentType": "binaryData",
+        "inputDataFieldName": "payload",
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "fb23c954-df96-5e2c-935b-06c45e31ad5b",
+      "name": "S3 leer archivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1430,
+        160
+      ],
+      "parameters": {
+        "method": "={{ $json.state.request.method }}",
+        "url": "={{ $json.state.request.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "aws",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json.state.request.query) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.state.request.headers) }}",
+        "sendBody": "={{ $json.state.request.payload !== null }}",
+        "contentType": "binaryData",
+        "inputDataFieldName": "payload",
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "file",
+              "outputPropertyName": "received"
+            }
+          }
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "7aaba52a-37dc-59cc-9092-6e1bb03ff0ce",
+      "name": "Azure operación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1430,
+        320
+      ],
+      "parameters": {
+        "method": "={{ $json.state.request.method }}",
+        "url": "={{ $json.state.request.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "azureStorageSharedKeyApi",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json.state.request.query) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.state.request.headers) }}",
+        "sendBody": "={{ $json.state.request.payload !== null }}",
+        "contentType": "binaryData",
+        "inputDataFieldName": "payload",
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "body"
+            }
+          }
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "21669c64-800d-5eb2-aa05-3c738aab8cce",
+      "name": "Azure leer archivo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1430,
+        480
+      ],
+      "parameters": {
+        "method": "={{ $json.state.request.method }}",
+        "url": "={{ $json.state.request.url }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "azureStorageSharedKeyApi",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json.state.request.query) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.state.request.headers) }}",
+        "sendBody": "={{ $json.state.request.payload !== null }}",
+        "contentType": "binaryData",
+        "inputDataFieldName": "payload",
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "file",
+              "outputPropertyName": "received"
+            }
+          }
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "7bb71fa5-c66a-546f-baef-5bff5aa39a4b",
+      "name": "Leer enlace público",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1430,
+        660
+      ],
+      "parameters": {
+        "method": "={{ $json.state.request.method }}",
+        "url": "={{ $json.state.request.url }}",
+        "authentication": "none",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={{ JSON.stringify($json.state.request.query) }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.state.request.headers) }}",
+        "sendBody": "={{ $json.state.request.payload !== null }}",
+        "contentType": "binaryData",
+        "inputDataFieldName": "payload",
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": false
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "file",
+              "outputPropertyName": "received"
+            }
+          }
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "4e60fb0b-3f6e-58cc-9a8d-fd89e9ab47b2",
+      "name": "Procesar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1690,
+        260
+      ],
+      "parameters": {
+        "jsCode": "/* IDPN storage protocol. No credentials or network access live in this module. */\nconst IDPN = (() => {\n  const mime = {pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};\n  const encodePath = value => value.split('/').map(encodeURIComponent).join('/');\n  const slug = value => value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');\n  function xmlDecode(value) {\n    return value.replace(/&(#x[0-9a-f]+|#\\d+|amp|lt|gt|quot|apos);/gi, (_, entity) => {\n      if (entity[0] === '#') return String.fromCodePoint(entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)));\n      return {amp:'&', lt:'<', gt:'>', quot:'\"', apos:\"'\"}[entity.toLowerCase()];\n    });\n  }\n  const tag = (xml, name) => {const match = xml.match(new RegExp(`<${name}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/${name}>`)); return match ? xmlDecode(match[1].replace(/^<!\\[CDATA\\[([\\s\\S]*)\\]\\]>$/, '$1')) : '';};\n  function listing(body, provider, destinations = false) {\n    if (typeof body !== 'string' || /<!DOCTYPE|<!ENTITY/i.test(body)) throw new Error('Listado XML inválido.');\n    const root = destinations ? (provider === 's3' ? 'ListAllMyBucketsResult' : 'EnumerationResults') : (provider === 's3' ? 'ListBucketResult' : 'EnumerationResults');\n    if (!new RegExp(`<${root}(?:\\\\s|>)`).test(body) || !body.includes(`</${root}>`)) throw new Error('Respuesta de inventario incompleta.');\n    const itemTag = destinations ? (provider === 's3' ? 'Bucket' : 'Container') : (provider === 's3' ? 'Contents' : 'Blob');\n    const entries = [...body.matchAll(new RegExp(`<${itemTag}>([\\\\s\\\\S]*?)<\\\\/${itemTag}>`, 'g'))].map(match => {\n      const item = match[1];\n      if (destinations) return {name: tag(item, 'Name')};\n      const key = tag(item, provider === 's3' ? 'Key' : 'Name');\n      const etag = tag(item, provider === 's3' ? 'ETag' : 'Etag');\n      const sizeValue = tag(item, provider === 's3' ? 'Size' : 'Content-Length');\n      if (!key || !etag || !/^\\d+$/.test(sizeValue)) throw new Error('Objeto sin key, etag o tamaño.');\n      return {key, etag, size: Number(sizeValue)};\n    });\n    const next = tag(body, provider === 's3' ? 'NextContinuationToken' : 'NextMarker') || (destinations && provider === 's3' ? tag(body,'ContinuationToken') : '');\n    if (provider === 's3' && tag(body, 'IsTruncated') === 'true' && !next) throw new Error('S3 omitió el token de paginación.');\n    return {entries, next};\n  }\n  function initialize(meta, file = null) {\n    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new Error('Metadatos inválidos.');\n    const storage = meta.storage || {};\n    if (!['s3','azure'].includes(storage.provider)) throw new Error('Selecciona S3 o Azure.');\n    if (storage.provider === 's3' && !/^[a-z]{2}(?:-[a-z]+)+-\\d+$/.test(storage.region || '')) throw new Error('Falta la región de S3.');\n    if (storage.provider === 'azure' && !/^[a-z0-9]{3,24}$/.test(storage.account || '')) throw new Error('Falta la cuenta de Azure.');\n    const operation = meta.operation || 'document';\n    if (!['inventory','document','destinations','download'].includes(operation)) throw new Error('Operación no admitida.');\n    if (operation !== 'destinations' && !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(storage.target || '')) throw new Error('Bucket/contenedor inválido.');\n    if (storage.provider === 'azure' && storage.target && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(storage.target)) throw new Error('Contenedor Azure inválido.');\n    const base = storage.provider === 's3' ? `https://s3.${storage.region}.amazonaws.com` : `https://${storage.account}.blob.core.windows.net`;\n    const s = {meta: JSON.parse(JSON.stringify(meta)), operation, provider: storage.provider, base, storage, phase: '', done:false, files:[], pages:0, lockHeld:false, file, archived:[]};\n    if (operation === 'destinations') {s.phase = 'list'; return s;}\n    if (operation === 'download') {\n      if (!validPath(meta.key) || /(?:^|\\/)\\.idpn/.test(meta.key) || !/\\.(?:pdf|docx?|xlsx?|pptx?)$/i.test(meta.key)) throw new Error('Clave de descarga inválida.');\n      s.phase = 'download'; return s;\n    }\n    if (meta.type_id === 'formulario') throw new Error('Los Formularios no se almacenan.');\n    const policy=meta.is_politica===true;\n    if (policy && (!meta.name || meta.code)) throw new Error('La política requiere nombre, sin código.');\n    if ((!policy && !/^[A-Z0-9]+(?:-[A-Z0-9]+)*-\\d{1,10}$/i.test(meta.code || '')) || !validPath(meta.directory)) throw new Error('Código o directorio inválido.');\n    if (operation === 'inventory') {s.phase = 'list'; return s;}\n    if (!['alta','version','baja','finalizar_baja'].includes(meta.action)) throw new Error('Acción inválida.');\n    if (!/^[a-zA-Z0-9_-]{16,80}$/.test(meta.operation_id || '')) throw new Error('Falta operation_id estable para reintentos.');\n    if ((!['baja','finalizar_baja'].includes(meta.action) || file) && (!file || !mime[file.extension] || !slug(meta.name || ''))) throw new Error('Selecciona un archivo PDF u Office y su nombre.');\n    if(meta.action==='finalizar_baja') {\n      const ref=meta.reference;\n      if(file||!ref||!validPath(ref.key)||!ref.key.startsWith(meta.directory+'/BAJA/')||ref.key.slice((meta.directory+'/BAJA/').length).includes('/')||!/^[a-f0-9]{64}$/.test(ref.sha256)||!Number.isInteger(ref.size)||ref.size<=0)throw new Error('Referencia de baja inválida.');\n      const identity=policy?slug(meta.name):meta.code;\n      if(!ref.key.split('/').pop().toLowerCase().startsWith(identity.toLowerCase()+(policy?'-v':'-')))throw new Error('La referencia pertenece a otro documento.');\n    }\n    s.lockKey = `${meta.directory}/.idpn-lock-${policy?'POLICY-'+slug(meta.name):meta.code.toUpperCase()}.json`;\n    s.manifestKey = `${meta.directory}/.idpn-operations/${meta.operation_id}.json`;\n    s.phase = 'lock';\n    return s;\n  }\n  function validPath(path) {return typeof path === 'string' && path.length > 0 && path.length <= 900 && !path.startsWith('/') && !/[\\\\\\x00-\\x1f]/.test(path) && path.split('/').every(part => part && part !== '.' && part !== '..');}\n  const objectUrl = (s,key) => `${s.base}/${s.storage.target}/${encodePath(key)}`;\n  function request(s) {\n    if (s.done) return null;\n    const r = {method:'GET', url:s.base, query:{}, headers:{}, binary:false, payload:null};\n    const key = value => r.url = objectUrl(s, value);\n    const put = (value,payload,headers={}) => {key(value); r.method='PUT'; r.payload=payload; Object.assign(r.headers,headers); if(s.provider==='azure') r.headers['x-ms-blob-type']='BlockBlob';};\n    switch(s.phase) {\n      case 'list':\n        if(s.provider==='s3') {r.url = s.operation==='destinations' ? s.base+'/' : `${s.base}/${s.storage.target}`; if(s.operation!=='destinations') r.query={'list-type':'2', prefix:s.meta.directory+'/'}; if(s.next)r.query['continuation-token']=s.next;}\n        else {r.url=s.operation==='destinations' ? s.base+'/' : `${s.base}/${s.storage.target}`; r.query=s.operation==='destinations'?{comp:'list'}:{restype:'container',comp:'list',prefix:s.meta.directory+'/'}; if(s.next)r.query.marker=s.next;}\n        break;\n      case 'lock': put(s.lockKey,{json:{operation_id:s.meta.operation_id,created_at:new Date().toISOString()}},{'if-none-match':'*'});break;\n      case 'manifest_get':key(s.manifestKey);break;\n      case 'manifest_put':put(s.manifestKey,{json:s.record},s.manifestEtag?{'if-match':s.manifestEtag}:{'if-none-match':'*'});break;\n      case 'upload_head':key(s.record.key);r.method='HEAD';break;\n      case 'upload':put(s.record.key,{binary:'file'},uploadHeaders(s,s.file));break;\n      case 'reference_get':key(s.meta.reference.key);r.binary=true;break;\n      case 'source_get':key(s.record.old[s.index].key);r.binary=true;r.headers['if-match']=s.record.old[s.index].etag;break;\n      case 'archive_put':put(s.record.old[s.index].destination,{binary:'archive'},uploadHeaders(s,s.record.old[s.index]));break;\n      case 'archive_get':key(s.record.old[s.index].destination);r.binary=true;break;\n      case 'source_delete':key(s.record.old[s.index].key);r.method='DELETE';r.headers['if-match']=s.record.old[s.index].etag;break;\n      case 'unlock':key(s.lockKey);r.method='DELETE';r.headers['if-match']=s.lockEtag;break;\n      case 'download':key(s.meta.key);r.binary=true;break;\n      default:throw new Error(`Fase no reconocida: ${s.phase}`);\n    }\n    return r;\n  }\n  function uploadHeaders(s,file) {\n    const headers={'if-none-match':'*','content-md5':file.md5,'content-type':mime[file.extension]||file.mime_type||'application/octet-stream','content-disposition':'inline'};\n    if(s.provider==='azure'){headers['x-ms-blob-content-disposition']='inline';delete headers['content-disposition'];}\n    headers[s.provider==='s3'?'x-amz-meta-idpn-sha256':'x-ms-meta-idpn_sha256']=file.sha256;\n    headers[s.provider==='s3'?'x-amz-meta-idpn-operation':'x-ms-meta-idpn_operation']=s.meta.operation_id;\n    return headers;\n  }\n  function checkpoint(s,next) {s.afterManifest=next;s.phase='manifest_put';}\n  function finish(s,result,status=200) {\n    s.result=result;s.status=status;\n    if(s.lockHeld&&s.lockEtag)s.phase='unlock';\n    else {if(s.lockHeld){s.result={...result,success:false,lock_key:s.lockKey,error:'Bloqueo sin ETag; requiere recuperación manual.'};s.status=502;}s.done=true;}\n  }\n  function fail(s,error,status=502) {finish(s,{success:false,error:String(error),operation_id:s.meta.operation_id,partial:!!s.record?.uploaded,key:s.record?.key,version:s.record?.version,archived:s.archived,lock_key:s.lockHeld?s.lockKey:undefined},status);}\n  function beginArchive(s) {\n    const next = s.record.old.findIndex(item=>!item.archived);\n    if(next===-1) {s.record.phase='complete';checkpoint(s,'complete');}\n    else {s.index=next;s.phase='source_get';}\n  }\n  function result(s) {\n    let {version,filename,key}=s.record;\n    let name=s.meta.name||'';\n    if(s.meta.action==='baja'&&!s.record.uploaded) {\n      const rank=item=>Number(/-v(\\d{3,})\\.[^.]+$/i.exec(item.key)?.[1]||0);\n      const latest=s.record.old.filter(item=>item.archived).sort((a,b)=>rank(b)-rank(a)||b.key.localeCompare(a.key))[0];\n      if(!latest)throw new Error('No hay un archivo archivado verificado para publicar la baja.');\n      key=latest.destination;filename=key.split('/').pop();\n      version=/-v(\\d{3,})\\.[^.]+$/i.exec(filename)?.[1];\n      version=version?'v'+version:null;\n      name=name||filename.slice(s.meta.is_politica?0:s.meta.code.length+1).replace(/-v\\d{3,}(?=\\.)/i,'').replace(/\\.[^.]+$/,'').replace(/-/g,' ');\n    }\n    return {success:true,operation_id:s.meta.operation_id,code:s.meta.code,action:s.meta.action,\n      version,filename,key,name,sha256:s.record.sha256,size:s.record.size,storage:s.storage,\n      url:key?objectUrl(s,key):null,\n      download_url:key&&s.meta.download_base_url ? s.meta.download_base_url+'?'+new URLSearchParams({provider:s.provider,target:s.storage.target,region:s.storage.region||'',account:s.storage.account||'',key}).toString():null,\n      archived:s.record.old.filter(item=>item.archived).map(item=>({source_key:item.key,key:item.destination}))};\n  }\n  function allocate(s) {\n    const identity=s.meta.is_politica?slug(s.meta.name):s.meta.code;\n    const escaped=identity.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&');\n    const versionPattern=new RegExp('^'+escaped+(s.meta.is_politica?'':'-.+')+'-v(\\\\d{3,})\\\\.(?:pdf|docx?|xlsx?|pptx?)$','i');\n    const legacyPattern=new RegExp('^'+escaped+(s.meta.is_politica?'':'-.+')+'\\\\.(?:pdf|docx?|xlsx?|pptx?)$','i');\n    const files=s.files.filter(item=>{const relative=item.key.slice(s.meta.directory.length+1);return item.key.startsWith(s.meta.directory+'/')&&(!relative.includes('/')||/^BAJA\\/[^/]+$/.test(relative))&&(versionPattern.test(relative.split('/').pop())||legacyPattern.test(relative.split('/').pop()));});\n    if(s.meta.action==='alta'&&files.length)throw new Error('El documento existe; selecciona Nueva versión.');\n    if(s.meta.action==='version'&&!files.length)throw new Error('El documento no existe; selecciona Alta.');\n    const old=files.filter(item=>!item.key.slice(s.meta.directory.length+1).startsWith('BAJA/')).map(item=>({...item,destination:s.meta.directory+'/BAJA/'+item.key.split('/').pop(),archived:false}));\n    if(s.meta.action==='baja'&&!s.file&&!old.length)throw new Error('No hay versiones activas para dar de baja.');\n    const next=Math.max(0,...files.map(item=>Number(versionPattern.exec(item.key.split('/').pop())?.[1]||0)))+1;\n    if(s.meta.action==='finalizar_baja') {\n      s.record={operation_id:s.meta.operation_id,action:s.meta.action,code:s.meta.code,directory:s.meta.directory,policy_name:s.meta.is_politica?slug(s.meta.name):null,sha256:null,reference:s.meta.reference,version:s.meta.reference.version,filename:s.meta.reference.key.split('/').pop(),key:s.meta.reference.key,phase:'reserved',uploaded:false,old};\n      checkpoint(s,'archive');return;\n    }\n    const upload=s.meta.action!=='baja'||!!s.file;\n    const version=!upload?null:'v'+String(next).padStart(3,'0');\n    const filename=version?`${s.meta.is_politica?'':s.meta.code+'-'}${slug(s.meta.name)}-${version}.${s.file.extension}`:null;\n    s.record={operation_id:s.meta.operation_id,action:s.meta.action,code:s.meta.code,directory:s.meta.directory,\n      policy_name:s.meta.is_politica?slug(s.meta.name):null,sha256:s.file?.sha256||null,size:s.file?.size||null,version,filename,key:filename?s.meta.directory+(s.meta.action==='baja'?'/BAJA/':'/')+filename:null,\n      phase:'reserved',uploaded:false,old:s.meta.action==='alta'||(s.meta.action==='baja'&&s.meta.defer_archive===true)?[]:old};\n    checkpoint(s,upload?'upload_head':'archive');\n  }\n  function transition(s,response,file=null) {\n    const status=Number(response.statusCode||0);\n    const headers=Object.fromEntries(Object.entries(response.headers||{}).map(([k,v])=>[k.toLowerCase(),String(v)]));\n    const ok=status>=200&&status<300;\n    const body=response.body||'';\n    try {\n      switch(s.phase) {\n        case 'lock':\n          if(!ok){fail(s,status===412?'El documento está siendo procesado o tiene un bloqueo pendiente.':'No se pudo adquirir el bloqueo.',status===412?409:502);break;}\n          s.lockHeld=true;s.lockEtag=headers.etag;if(!s.lockEtag)throw new Error('El bloqueo no devolvió ETag. Requiere recuperación manual.');s.phase='manifest_get';break;\n        case 'manifest_get':\n          if(status===404){s.phase=s.meta.action==='finalizar_baja'?'reference_get':'list';break;}\n          if(!ok)throw new Error('No se pudo consultar la operación anterior.');\n          s.record=JSON.parse(body);s.manifestEtag=headers.etag;\n          if(!s.manifestEtag||s.record.operation_id!==s.meta.operation_id||s.record.action!==s.meta.action||s.record.code!==s.meta.code||s.record.directory!==s.meta.directory||(s.meta.is_politica&&s.record.policy_name!==slug(s.meta.name))||s.record.sha256!==(s.file?.sha256||null)||(s.meta.action==='finalizar_baja'&&JSON.stringify(s.record.reference)!==JSON.stringify(s.meta.reference)))throw new Error('operation_id pertenece a otra solicitud.');\n          if(s.record.phase==='complete')finish(s,result(s));\n          else s.phase=s.meta.action==='finalizar_baja'?'reference_get':s.meta.action==='baja'&&!s.file?'archive_resume':'upload_head';\n          if(s.phase==='archive_resume')beginArchive(s);break;\n        case 'list': {\n          if(!ok)throw new Error('No se pudo listar el almacenamiento.');\n          const page=listing(body,s.provider,s.operation==='destinations');s.files.push(...page.entries);\n          if(++s.pages>1000)throw new Error('Inventario demasiado grande.');\n          if(page.next){if(page.next===s.next)throw new Error('Token de paginación repetido.');s.next=page.next;break;}\n          if(s.operation==='inventory')finish(s,{success:true,complete:true,files:s.files});\n          else if(s.operation==='destinations')finish(s,{success:true,complete:true,targets:s.files});\n          else allocate(s);break;\n        }\n        case 'manifest_put':\n          if(!ok||!headers.etag)throw new Error('No se pudo guardar el estado de la operación.');\n          s.manifestEtag=headers.etag;\n          if(s.afterManifest==='archive')beginArchive(s);\n          else if(s.afterManifest==='complete')finish(s,result(s));\n          else s.phase=s.afterManifest;break;\n        case 'upload_head': {\n          if(status===404){s.phase='upload';break;}\n          if(!ok)throw new Error('No se pudo verificar el archivo nuevo.');\n          const digest=headers[s.provider==='s3'?'x-amz-meta-idpn-sha256':'x-ms-meta-idpn_sha256'];\n          if(digest!==s.file.sha256||Number(headers['content-length'])!==s.file.size)throw new Error('La clave de la versión existe con otro contenido.');\n          s.record.uploaded=true;checkpoint(s,'archive');break;\n        }\n        case 'upload':\n          if(!ok)throw new Error(status===412?'La versión ya existe; no se sobrescribió.':'Falló la subida.');\n          s.phase='upload_head';break;\n        case 'reference_get':\n          if(!ok||!file||file.sha256!==s.meta.reference.sha256||file.size!==s.meta.reference.size)throw new Error('El archivo testigo falta o cambió; no se archivaron antecedentes.');\n          if(s.record)beginArchive(s);else s.phase='list';break;\n        case 'source_get': {\n          const old=s.record.old[s.index];\n          if(status===404){if(!old.sha256)throw new Error('El antecedente desapareció sin una copia verificada.');s.phase='archive_get';break;}\n          if(!ok||!file)throw new Error('No se pudo leer el antecedente o cambió su ETag.');\n          if(old.sha256&&old.sha256!==file.sha256)throw new Error('El contenido del antecedente cambió.');\n          Object.assign(old,file);\n          if(s.meta.action==='finalizar_baja'&&file.sha256===s.meta.reference.sha256&&file.size===s.meta.reference.size) {old.destination=s.meta.reference.key;old.duplicate=true;checkpoint(s,'archive_get');}\n          else checkpoint(s,'archive_put');break;\n        }\n        case 'archive_put':\n          if(!ok&&status!==412)throw new Error('Falló la copia a BAJA; se conservó el original.');\n          s.phase='archive_get';break;\n        case 'archive_get': {\n          const old=s.record.old[s.index];\n          if(!ok||!file||old.sha256!==file.sha256||old.size!==file.size)throw new Error('La copia en BAJA no coincide; se conservó el original.');\n          s.phase='source_delete';break;\n        }\n        case 'source_delete':\n          if(!ok&&status!==404)throw new Error('La copia está en BAJA, pero no se pudo retirar el original.');\n          s.record.old[s.index].archived=true;s.archived.push(s.record.old[s.index].destination);checkpoint(s,'archive');break;\n        case 'unlock':\n          if(!ok&&status!==404){s.result={...s.result,success:false,error:'No se pudo liberar el bloqueo. Requiere revisar su ETag antes de retirarlo.',lock_key:s.lockKey,partial:!!s.record?.uploaded};s.status=502;}\n          s.lockHeld=false;s.done=true;break;\n        case 'download':\n          if(!ok||!file)throw new Error('Archivo no disponible.');\n          s.download=true;finish(s,{success:true,filename:s.meta.key.split('/').pop(),mime_type:file.mime_type||mime[file.extension]||'application/octet-stream'});break;\n        default:throw new Error('Transición desconocida.');\n      }\n    } catch(error) {fail(s,error.message);}\n    return s;\n  }\n  return {initialize,request,transition,listing,fail,mime};\n})();\n\nconst crypto = require('crypto');\nasync function describeBinary(field) {\n  const bytes = await this.helpers.getBinaryDataBuffer(0, field);\n  if (bytes.length > 15 * 1024 * 1024) throw new Error('El archivo excede el límite preparado de 15 MiB.');\n  const binary = $input.first().binary[field];\n  const filename = binary.fileName || '';\n  return {size:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),\n    md5:crypto.createHash('md5').update(bytes).digest('base64'),\n    extension:filename.split('.').pop().toLowerCase(),mime_type:binary.mimeType};\n}\n\nconst input=$input.first();\nconst previous=$('Solicitud actual').itemMatching(0);\nconst state=previous.json.state;\nconst binary={...previous.binary,...input.binary};\nlet file=null;\ntry {\n  if (input.binary?.received && Number(input.json.statusCode)>=200 && Number(input.json.statusCode)<300) {\n    file=await describeBinary.call(this,'received');\n    if(state.phase==='source_get')binary.archive=input.binary.received;\n    if(state.phase==='download')binary.download=input.binary.received;\n  }\n  IDPN.transition(state,{statusCode:input.json.statusCode,headers:input.json.headers,body:input.json.body},file);\n} catch(error) {IDPN.fail(state,error.message);}\nreturn [{json:{state},binary,pairedItem:{item:0}}];\n"
+      }
+    },
+    {
+      "id": "8372e31f-9e4a-529a-a2d6-21da337ddb49",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -540
+      ],
+      "parameters": {
+        "content": "## IDPN: S3 + Azure\n1. Credencial Header Auth en IDPN documentos: X-IDPN-Token.\n2. Seleccionar AWS IAM en los dos nodos S3.\n3. Seleccionar Azure Storage Shared Key en los dos nodos Azure.\n4. En self-hosted habilitar NODE_FUNCTION_ALLOW_BUILTIN=crypto en el runner.\n5. Los buckets/contenedores deben existir y permitir lectura pública de los documentos.\n\nLa aplicación selecciona región, cuenta, destino y directorio. El workflow calcula versiones, verifica copias y conserva antecedentes en BAJA.\n\nImportación/ex ejecución real pendiente de validar en tu versión de n8n. Consultar README.md de esta carpeta.",
+        "height": 500,
+        "width": 450
+      }
+    }
+  ],
+  "connections": {
+    "S3 archivo": {
+      "main": [
+        [
+          {
+            "node": "S3 leer archivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "S3 operación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3 operación": {
+      "main": [
+        [
+          {
+            "node": "Procesar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3 leer archivo": {
+      "main": [
+        [
+          {
+            "node": "Procesar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure archivo": {
+      "main": [
+        [
+          {
+            "node": "Azure leer archivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Azure operación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure operación": {
+      "main": [
+        [
+          {
+            "node": "Procesar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Azure leer archivo": {
+      "main": [
+        [
+          {
+            "node": "Procesar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer enlace público": {
+      "main": [
+        [
+          {
+            "node": "Procesar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IDPN documentos": {
+      "main": [
+        [
+          {
+            "node": "Validar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descarga pública": {
+      "main": [
+        [
+          {
+            "node": "Validar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar entrada": {
+      "main": [
+        [
+          {
+            "node": "Solicitud actual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitud actual": {
+      "main": [
+        [
+          {
+            "node": "Terminado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Terminado": {
+      "main": [
+        [
+          {
+            "node": "Respuesta binaria",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Lectura pública",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lectura pública": {
+      "main": [
+        [
+          {
+            "node": "Leer enlace público",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Proveedor S3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta binaria": {
+      "main": [
+        [
+          {
+            "node": "Descargar archivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proveedor S3": {
+      "main": [
+        [
+          {
+            "node": "S3 archivo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Azure archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar resultado": {
+      "main": [
+        [
+          {
+            "node": "Solicitud actual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 900,
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "pinData": {},
+  "tags": []
+}

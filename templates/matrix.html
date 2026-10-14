@@ -1,0 +1,38 @@
+<div id="company-matrix-settings">
+  <div class="tab-header">
+    <h2>Matriz documental</h2>
+    <p>Administra procedimientos, procesos, áreas, siglas y destinos de la empresa seleccionada.</p>
+  </div>
+  <div id="matrix-alert" role="status" class="matrix-message" hidden></div>
+  <div class="matrix-layout" id="matrix-workspace" hidden>
+    <div class="card matrix-admin">
+      <h3>Estructura documental y almacenamiento</h3>
+      <form id="matrix-admin-form">
+        <div class="form-group"><label for="matrix-name">Nombre de la empresa</label><input id="matrix-name" required></div>
+        <div class="matrix-fields">
+          <div class="form-group"><label for="matrix-provider">Almacenamiento predeterminado</label><select id="matrix-provider"><option value="">Pendiente de configurar</option><option value="s3">Amazon S3</option><option value="azure">Azure Blob Storage</option></select></div>
+          <div class="form-group"><label for="matrix-target">Bucket / contenedor</label><input id="matrix-target" placeholder="documentos-empresa"></div>
+          <div class="form-group"><label for="matrix-root">Directorio raíz</label><input id="matrix-root" placeholder="empresa"></div>
+          <div class="form-group"><label for="matrix-region">Región S3</label><input id="matrix-region" placeholder="us-east-1"></div>
+          <div class="form-group"><label for="matrix-account">Cuenta Azure</label><input id="matrix-account" placeholder="cuentaalmacenamiento"></div>
+        </div>
+        <button class="btn btn-secondary" type="button" id="matrix-list-targets">Consultar buckets / contenedores</button>
+        <datalist id="matrix-targets"></datalist>
+        <details class="matrix-section">
+          <summary>Tipos de documento y prefijos</summary>
+          <p class="matrix-hint">Formatos y Formularios pueden compartir siglas. Los Formularios no almacenan archivos.</p>
+          <div id="matrix-types"></div>
+        </details>
+        <div class="matrix-section">
+          <div class="matrix-section-title"><h4>Procedimientos de Gobierno</h4><button id="matrix-add-government" type="button" class="btn btn-secondary">Agregar</button></div>
+          <div id="matrix-government" class="matrix-tree"></div>
+        </div>
+        <div class="matrix-section">
+          <div class="matrix-section-title"><h4>Procedimientos Específicos</h4><button id="matrix-add-process" type="button" class="btn btn-secondary">Agregar proceso</button></div>
+          <div id="matrix-specific" class="matrix-tree"></div>
+        </div>
+        <button class="btn btn-primary" type="submit" id="matrix-save">Guardar matriz de esta empresa</button>
+      </form>
+    </div>
+  </div>
+</div>

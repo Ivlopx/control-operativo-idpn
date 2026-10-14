@@ -1,0 +1,29 @@
+{% extends 'auth_layout.html' %}
+{% block title %}Usuarios · IDPN{% endblock %}
+{% block content %}
+<div class="page-heading"><span class="page-heading-icon" aria-hidden="true"><svg class="ui-icon"><use href="#icon-users"></use></svg></span><div><h1>Usuarios</h1><p>Administra las cuentas y sus permisos de acceso.</p></div></div>
+<div class="user-stats" aria-label="Resumen de usuarios">
+  <div class="user-stat"><svg class="ui-icon" aria-hidden="true"><use href="#icon-users"></use></svg><div><strong id="users-total">—</strong><span>Usuarios registrados</span></div></div>
+  <div class="user-stat"><svg class="ui-icon" aria-hidden="true"><use href="#icon-user"></use></svg><div><strong id="users-active">—</strong><span>Cuentas activas</span></div></div>
+  <div class="user-stat"><svg class="ui-icon" aria-hidden="true"><use href="#icon-key"></use></svg><div><strong id="users-admins">—</strong><span>Administradores</span></div></div>
+</div>
+<p id="users-message" role="status" hidden></p>
+<div class="user-management-grid">
+  <section class="card user-create-card">
+    <div class="section-heading"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg><h2>Nuevo usuario</h2></div>
+    <p class="section-description">La cuenta podrá ejecutar ambos procesos con su propia sesión de WordPress.</p>
+    <form id="new-user-form">
+      <div class="form-group"><label for="new-username">Usuario</label><input id="new-username" required minlength="3" maxlength="64" autocomplete="off" placeholder="Nombre de usuario"></div>
+      <div class="form-group"><label for="new-user-password">Contraseña inicial</label><input id="new-user-password" type="password" required minlength="12" maxlength="256" autocomplete="new-password" placeholder="Al menos 12 caracteres"></div>
+      <div class="form-group"><label for="new-user-role">Rol</label><select id="new-user-role"><option value="operator">Usuario</option><option value="admin">Administrador</option></select></div>
+      <label class="permission-toggle" for="new-user-edit"><input id="new-user-edit" type="checkbox" role="switch"><span class="permission-switch" aria-hidden="true"></span><span>Editar empresas</span></label>
+      <button class="btn btn-primary user-create-submit"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg>Crear usuario</button>
+    </form>
+  </section>
+  <section class="user-directory" aria-labelledby="users-directory-title">
+    <div class="section-heading"><svg class="ui-icon" aria-hidden="true"><use href="#icon-users"></use></svg><h2 id="users-directory-title">Cuentas de la plataforma</h2></div>
+    <div id="users-list" class="user-cards"></div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static',filename='users.js') }}"></script>{% endblock %}
