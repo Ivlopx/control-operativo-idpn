@@ -67,7 +67,7 @@ def exit_code_editor_if_active(page, log_callback, wait_timeout_func):
     return False
 
 def generate_gutenberg_html(site_config, page_data):
-    """Build one self-contained HTML block with stable IDPN component markers."""
+    """Build document HTML or a native WordPress embed with owned review blocks."""
     folio = page_data.get('folio', '').strip()
     codigo = page_data.get('codigo', '').strip().upper()
     nombre = clean_name(page_data.get('nombre', '').strip())
@@ -92,9 +92,7 @@ def generate_gutenberg_html(site_config, page_data):
         viewer_url = 'https://view.officeapps.live.com/op/embed.aspx?src=' + quote(resource_url, safe='')
 
     title = nombre or get_doc_title_from_url(resource_url) or 'Documento'
-    if resource_type == 'form':
-        action = f'<a href="{escape(resource_url, quote=True)}" target="_blank" rel="noopener noreferrer">Abrir formulario / web</a>'
-    else:
+    if resource_type != 'form':
         download_url = checked_url(page_data.get('download_url', '').strip() or resource_url)
         action = (
             f'<a href="{escape(download_url, quote=True)}" download="{escape(filename, quote=True)}" '
@@ -111,6 +109,34 @@ def generate_gutenberg_html(site_config, page_data):
     )
     status_label = 'Registro de baja del formulario' if resource_type == 'form' else 'Registro de baja del documento'
     status_section = f'<p data-idpn-component="status"><strong>{status_label}</strong></p>' if page_data.get('document_status') == 'baja' else ''
+    if resource_type == 'form':
+        # Keep core/embed outside core/html so Gutenberg and WordPress oEmbed render it.
+        attributes = {'url': resource_url, 'type': 'wp-embed', 'align': 'center',
+                      'className': 'idpn-primary-form-resource'}
+        serialized = json.dumps(attributes, ensure_ascii=False, separators=(',', ':'))
+        for literal, encoded in [('--', r'\u002d\u002d'), ('<', r'\u003c'), ('>', r'\u003e'), ('&', r'\u0026')]:
+            serialized = serialized.replace(literal, encoded)
+        return f'''<!-- wp:html -->
+<section data-idpn-page="1" style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
+  <h2 class="wp-block-heading" data-idpn-component="heading" style="text-align:left;">{escape(heading)}</h2>
+  {status_section}
+</section>
+<!-- /wp:html -->
+
+<!-- wp:embed {serialized} -->
+<figure class="wp-block-embed aligncenter is-type-wp-embed idpn-primary-form-resource"><div class="wp-block-embed__wrapper">
+{escape(resource_url)}
+</div></figure>
+<!-- /wp:embed -->
+
+<!-- wp:html -->
+<section data-idpn-page="1" style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
+  <div data-idpn-component="folio" style="margin:24px 0;text-align:left;">
+    <h3 style="color:#ff0000;text-align:left;">Folio: {escape(folio)}</h3>
+  </div>
+  {cognito_section}
+</section>
+<!-- /wp:html -->'''
     return f'''<!-- wp:html -->
 <section data-idpn-page="1" style="box-sizing:border-box;width:100%;max-width:none;margin:0 auto;padding:0 clamp(12px,2vw,24px);text-align:left;">
   <h2 class="wp-block-heading" data-idpn-component="heading" style="text-align:left;">{escape(heading)}</h2>

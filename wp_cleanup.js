@@ -56,6 +56,10 @@ async options => {
         if (block.name === 'core/block' && block.attributes && block.attributes.ref) {
             throw new Error('La página contiene un patrón sincronizado. Se requiere revisar su contenido referenciado antes de confirmar la limpieza.');
         }
+        // The submitted resource is not the separate Cognito approval form.
+        if (block.name === 'core/embed' && (block.attributes?.className || '').split(/\s+/).includes('idpn-primary-form-resource')) {
+            return [{ ...block, innerBlocks: cleanBlocks(children) }];
+        }
         // Inspect this block's own data, so a group is not deleted with its document.
         const strings = value => typeof value === 'string' ? [value] : value && typeof value === 'object' ? Object.values(value).flatMap(strings) : [];
         const own = strings([block.name, block.attributes, block.originalContent, block.innerHTML]).join('\n');

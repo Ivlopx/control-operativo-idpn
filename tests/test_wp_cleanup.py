@@ -1,5 +1,7 @@
 """Offline browser regressions. No site login or external requests are made."""
 from pathlib import Path
+import json
+import re
 import sys
 import unittest
 
@@ -200,8 +202,33 @@ class CleanupTests(unittest.TestCase):
                     'document_status':'baja','embed_type':'form','enlace':'https://example.test/formulario'})
         self.page.set_content(html)
         self.assertEqual(self.page.locator('[data-idpn-component="status"]').inner_text(), 'Registro de baja del formulario')
-        self.assertEqual(self.page.locator('iframe').get_attribute('src'), 'https://example.test/formulario')
+        self.assertEqual(self.page.locator('iframe').count(), 0)
+        self.assertEqual(self.page.locator('figure.aligncenter .wp-block-embed__wrapper').inner_text().strip(), 'https://example.test/formulario')
+        self.assertEqual(html.count('<!-- wp:embed '), 1)
         self.assertIn('268123', self.page.locator('[data-idpn-component="folio"]').inner_text())
+
+    def test_native_form_embed_survives_review_cleanup_and_has_correct_block_order(self):
+        url = 'https://www.cognitoforms.com/example/form?value=a&other=-->'
+        html = generate_gutenberg_html({'cognito_script':'<script src="https://www.cognitoforms.com/f/seamless.js" data-form="818"></script>'},
+                    {'codigo':'FE-A-COM-015','nombre':'Solicitud de efectivo','folio':'268202','embed_type':'form','enlace':url})
+        matches = list(re.finditer(r'<!-- wp:(html|embed)(?: (\{.*?\}))? -->(.*?)<!-- /wp:\1 -->', html, re.S))
+        self.assertEqual([match[1] for match in matches], ['html','embed','html'])
+        attributes = json.loads(matches[1][2])
+        self.assertEqual(attributes['url'], url)
+        self.assertEqual(attributes['type'], 'wp-embed')
+        self.assertEqual(attributes['align'], 'center')
+        self.assertNotIn('height=', matches[1][3])
+        self.assertNotIn('<iframe', html)
+        self.assertIn('data-idpn-component="heading"', matches[0][3])
+        self.assertIn('data-idpn-component="folio"', matches[2][3])
+        self.assertIn('data-idpn-component="cognito"', matches[2][3])
+        embed = block('core/embed', **attributes)
+        self.setup_editor([block('core/html', matches[0][3]), embed, block('core/html', matches[2][3])])
+        self.assertEqual(get_document_heading(self.page), 'FE-A-COM-015 Solicitud De Efectivo')
+        self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
+        self.assertIn(embed, self.page.evaluate('current'))
+        self.assertNotIn('data-idpn-component="folio"', self.page.evaluate('JSON.stringify(current)'))
+        self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
 
     def test_pdf_mime_type_without_filename_extension(self):
         html = generate_gutenberg_html({}, {'nombre': 'PDF', 'enlace': 'https://files.test/opaque-id', 'mime_type': 'application/pdf'})
@@ -213,8 +240,9 @@ class CleanupTests(unittest.TestCase):
                     'enlace': 'https://forms.test/form', 'embed_type': 'form'})
         self.page.set_content(html)
         self.assertEqual(self.page.locator('h2').first.inner_text(), 'Política')
-        self.assertEqual(self.page.locator('iframe').get_attribute('src'), 'https://forms.test/form')
-        self.assertEqual(self.page.locator('a').inner_text(), 'Abrir formulario / web')
+        self.assertEqual(self.page.locator('iframe').count(), 0)
+        self.assertEqual(self.page.locator('figure.aligncenter .wp-block-embed__wrapper').inner_text().strip(), 'https://forms.test/form')
+        self.assertEqual(self.page.locator('[data-idpn-component="download"]').count(), 0)
 
     def test_text_is_escaped_and_non_http_urls_are_rejected(self):
         html = generate_gutenberg_html({}, {'nombre': 'Documento', 'codigo': '<script>alert(1)</script>',

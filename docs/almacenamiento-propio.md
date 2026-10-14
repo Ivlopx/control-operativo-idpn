@@ -28,7 +28,7 @@ Permisos para la identidad AWS: listar buckets (para el selector), listar objeto
 - Nueva versión: máximo de las versiones activas y baja + 1; verifica el nuevo archivo antes de archivar las versiones activas.
 - Baja, primer proceso: requiere archivo y folio, guarda el testigo directamente en baja, publica la página y deja activos los antecedentes.
 - Baja, segundo proceso: usar el folio de la página testigo. Primero confirma la limpieza de Cognito y folio en WordPress; después verifica el testigo, copia los antecedentes a baja y verifica sus bytes antes de retirar los originales. Si un antecedente es idéntico al testigo, conserva este y retira la copia activa sin generar otro duplicado.
-- Formularios Web: alta/baja solo publican en WordPress; no usan el almacenamiento.
+- Formularios Web: alta/baja solo publican en WordPress; no usan el almacenamiento. Publican encabezado, un bloque nativo `core/embed` centrado con el enlace capturado, folio y Cognito. No incrustan la página completa en un iframe ni fuerzan altura o anchura del recurso. El segundo proceso conserva el bloque del enlace y retira únicamente Cognito y folio.
 - Políticas: sin código; identidad por nombre y directorio, ubicación manual y versiones automáticas.
 
 Se mantiene el límite de 15 MiB para archivos nuevos y antecedentes. Los reintentos con el mismo identificador de operación recuperan el manifiesto y su versión. Un bloqueo abandonado tras detener el proceso abruptamente requiere comprobar que no hay una operación en curso antes de recuperarlo manualmente; no se eliminan bloqueos ajenos automáticamente.
