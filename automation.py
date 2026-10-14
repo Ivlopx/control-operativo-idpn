@@ -99,8 +99,10 @@ def generate_gutenberg_html(site_config, page_data):
         action = (
             f'<a href="{escape(download_url, quote=True)}" download="{escape(filename, quote=True)}" '
             'target="_blank" rel="noopener noreferrer" '
-            'style="display:inline-block;padding:12px 20px;border-radius:6px;background:#0397d1;color:#fff;text-decoration:none;font-weight:600;">'
-            'Descargar documento</a>'
+            'style="display:inline-flex;align-items:center;justify-content:center;gap:10px;box-sizing:border-box;max-width:100%;padding:13px 24px;border:1px solid #173b57;border-radius:10px;background:#173b57;color:#fff;text-decoration:none;font:600 15px/1.4 system-ui,sans-serif;box-shadow:0 3px 8px rgba(23,59,87,.18);">'
+            '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false" style="display:block;flex-shrink:0;">'
+            '<path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            f'{"Descargar archivo PDF" if is_pdf else "Descargar documento"}</a>'
         )
     cognito_script = site_config.get('cognito_script', '').strip()
     cognito_section = (
@@ -110,15 +112,15 @@ def generate_gutenberg_html(site_config, page_data):
     status_label = 'Registro de baja del formulario' if resource_type == 'form' else 'Registro de baja del documento'
     status_section = f'<p data-idpn-component="status"><strong>{status_label}</strong></p>' if page_data.get('document_status') == 'baja' else ''
     return f'''<!-- wp:html -->
-<section data-idpn-page="1" style="width:100%;max-width:1000px;margin:0 auto;">
-  <h2 class="wp-block-heading" data-idpn-component="heading">{escape(heading)}</h2>
+<section data-idpn-page="1" style="box-sizing:border-box;width:100%;max-width:none;margin:0 auto;padding:0 clamp(12px,2vw,24px);text-align:left;">
+  <h2 class="wp-block-heading" data-idpn-component="heading" style="text-align:left;">{escape(heading)}</h2>
   {status_section}
-  <div data-idpn-component="resource">
+  <div data-idpn-component="resource" style="width:100%;margin:0 auto 20px;">
     <iframe src="{escape(viewer_url, quote=True)}" title="{escape(title, quote=True)}" width="100%" height="800" allowfullscreen style="display:block;width:100%;height:80vh;min-height:480px;max-height:1000px;border:0;"></iframe>
   </div>
-  <div data-idpn-component="download" style="margin:16px 0;">{action}</div>
-  <div data-idpn-component="folio" style="margin:24px 0;">
-    <h2 style="color:#ff0000;">Folio: {escape(folio)}</h2>
+  <div data-idpn-component="download" style="margin:20px 0 28px;text-align:center;">{action}</div>
+  <div data-idpn-component="folio" style="margin:24px 0;text-align:left;">
+    <h3 style="color:#ff0000;text-align:left;">Folio: {escape(folio)}</h3>
   </div>
   {cognito_section}
 </section>

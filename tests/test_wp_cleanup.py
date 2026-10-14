@@ -132,7 +132,7 @@ class CleanupTests(unittest.TestCase):
         self.assertTrue(result['success'], result)
         content = self.page.evaluate('current[0].attributes.content')
         self.assertIn('documento.pdf', content)
-        self.assertIn('Descargar documento', content)
+        self.assertIn('Descargar archivo PDF', content)
         self.assertIn('FE-001 Mi Documento', content)
         self.assertNotIn('data-idpn-component="cognito"', content)
         self.assertNotIn('data-idpn-component="folio"', content)
@@ -154,6 +154,25 @@ class CleanupTests(unittest.TestCase):
         self.assertIn('Folio: explicación', content)
         self.assertNotIn('new-provider.test', content)
         self.assertNotIn('Referencia cambiada', content)
+
+    def test_document_uses_available_width_and_keeps_headings_left_aligned(self):
+        html = generate_gutenberg_html({}, {'codigo':'FE-O-ALM-026', 'nombre':'Requisición a Producción', 'folio':'268202', 'enlace':'https://files.test/document.pdf'})
+        for width in (1440,390):
+            self.page.set_viewport_size({'width':width,'height':1000})
+            self.page.set_content('<style>.entry-content,h2,h3{text-align:center}</style><div class="entry-content">'+html+'</div>')
+            wrapper = self.page.locator('[data-idpn-page]').bounding_box()
+            iframe = self.page.locator('iframe').bounding_box()
+            self.assertGreater(iframe['width'], wrapper['width'] * .90)
+            self.assertLess(iframe['width'], wrapper['width'])
+            for selector in ('[data-idpn-component="heading"]','[data-idpn-component="folio"] h3'):
+                self.assertEqual(self.page.locator(selector).evaluate('element => getComputedStyle(element).textAlign'), 'left')
+            button = self.page.locator('[data-idpn-component="download"] a')
+            bounds = button.bounding_box()
+            self.assertAlmostEqual(bounds['x']+bounds['width']/2, wrapper['x']+wrapper['width']/2, delta=2)
+            self.assertEqual(button.locator('svg').count(),1)
+            self.assertEqual(button.evaluate('element => getComputedStyle(element).backgroundColor'), 'rgb(23, 59, 87)')
+            self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.page.screenshot(path=f'/private/tmp/idpn-published-document-{width}.png', full_page=True)
 
     def test_office_url_encoding_and_download_metadata(self):
         url = 'https://files.test/documento.xlsx?sig=a+b&token=valor%20firmado'
