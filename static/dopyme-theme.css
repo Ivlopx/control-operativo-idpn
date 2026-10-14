@@ -547,3 +547,29 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-color);
 .account-dropdown-heading { overflow-wrap:anywhere; }
 .account-chip:focus-visible, .app-header .nav-item:focus-visible { outline:3px solid #173B5738; outline-offset:3px; }
 .password-actions a.btn { text-decoration:none; }
+
+/* Global cloud credentials and provider-specific company destinations. */
+.credential-heading {display:flex; align-items:center; gap:12px; margin-bottom:12px;}
+.credential-heading h3 {margin:0;}
+.credential-heading > .ui-icon {color:var(--navy, #173b57); width:24px; height:24px;}
+.credential-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:22px 0;}
+.credential-provider {border:1px solid #dce3e8; border-radius:14px; padding:24px; background:#fafbfc; min-width:0;}
+.credential-provider .matrix-fields {display:grid; grid-template-columns:1fr; gap:14px;}
+.credential-provider .cloud-provider-title {margin:0 0 12px; display:flex; align-items:center; gap:10px;}
+.credential-status {display:inline-flex; margin:0 0 20px; border-radius:20px; padding:5px 11px; background:#edf0f3; color:#536376; font-size:12px; font-weight:600;}
+.credential-status.configured {background:#e5f2eb; color:#276344;}
+.credential-actions {display:flex; justify-content:flex-end; padding-top:18px; border-top:1px solid #e1e6eb;}
+.credential-actions .btn {display:inline-flex; align-items:center; gap:9px;}
+.company-storage-settings {border:1px solid #dce3e8; border-radius:12px; padding:18px; margin:16px 0 12px; background:#fafbfc;}
+#matrix-destination-fields {margin-top:16px; grid-template-columns:repeat(3,minmax(0,1fr));}
+#matrix-list-targets {display:inline-flex; align-items:center; gap:8px; margin-bottom:20px;}
+#matrix-destination-fields[hidden], #matrix-region-group[hidden], #matrix-list-targets[hidden], .matrix-storage-override .form-group[hidden] {display:none !important;}
+@media(max-width:760px) {.credential-grid {grid-template-columns:1fr;} .credential-provider {padding:18px;} #matrix-destination-fields {grid-template-columns:1fr;} .credential-heading {flex-wrap:wrap;}}
+
+.destination-branch {border-bottom:1px solid #e1e6eb; padding:16px 0;}
+.destination-branch h4 {margin:0 0 12px;}
+.destination-area {margin:12px 0 0 18px; padding:12px 16px; border-left:2px solid #dce3e8;}
+.destination-area h5 {margin:0 0 8px; font-size:14px;}
+.credential-provider input::placeholder {color:#697b8b; letter-spacing:3px; opacity:1;}
+#destination-save {display:inline-flex; align-items:center; gap:8px; margin-top:18px;}
+@media(max-width:760px) {.company-settings-tabs {display:grid; grid-template-columns:repeat(2,minmax(0,1fr));} .destination-area {margin-left:8px;}}

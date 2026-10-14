@@ -190,9 +190,11 @@ class NativeLifecycleTests(unittest.TestCase):
 
     def test_account_change_requires_new_key_and_credentials_never_leave_status(self):
         status = save_credentials({'azure':{'account':'firstaccount','account_key':'secret'}})
-        self.assertNotIn('secret', json.dumps(status))
+        self.assertNotIn('"secret"', json.dumps(status))
         with self.assertRaises(ValueError): save_credentials({'azure':{'account':'secondaccount'}})
-        with self.assertRaises(ValueError): require_credentials({'provider':'azure','account':'otheraccount'})
+        destination = {'provider':'azure','account':'otheraccount'}
+        require_credentials(destination)
+        self.assertEqual(destination['account'], 'firstaccount')
 
     def test_azure_and_s3_share_lifecycle_protocol(self):
         self.meta['storage'] = {'provider':'azure','target':'documents','account':'companyaccount'}

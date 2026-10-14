@@ -19,8 +19,12 @@ def load_credentials():
 def credentials_status(settings=None):
     settings = settings or load_credentials()
     aws, azure = settings.get('s3', {}), settings.get('azure', {})
-    return {'s3': {'configured': bool(aws.get('access_key_id') and aws.get('secret_access_key'))},
-            'azure': {'account': azure.get('account', ''), 'configured': bool(azure.get('account') and azure.get('account_key'))}}
+    return {'s3': {'configured': bool(aws.get('access_key_id') and aws.get('secret_access_key')),
+                   'access_key_configured': bool(aws.get('access_key_id')),
+                   'secret_key_configured': bool(aws.get('secret_access_key')),
+                   'session_token_configured': bool(aws.get('session_token'))},
+            'azure': {'account': azure.get('account', ''), 'configured': bool(azure.get('account') and azure.get('account_key')),
+                      'account_key_configured': bool(azure.get('account_key'))}}
 
 
 def save_credentials(data):
@@ -56,11 +60,17 @@ def save_credentials(data):
     return credentials_status(result)
 
 
+def bind_global_account(storage, settings=None):
+    if storage.get('provider') == 'azure':
+        settings = settings if settings is not None else load_credentials()
+        storage['account'] = settings.get('azure', {}).get('account', '')
+    return storage
+
+
 def require_credentials(storage):
     settings = load_credentials()
     provider = storage.get('provider')
     if provider not in ('s3', 'azure') or not credentials_status(settings)[provider]['configured']:
-        raise ValueError('Configura las credenciales de S3 o Azure en Acceso al almacenamiento · Global.')
-    if provider == 'azure' and storage.get('account') != settings['azure']['account']:
-        raise ValueError('La cuenta Azure del destino no coincide con la cuenta de las credenciales globales.')
+        raise ValueError('Configura las credenciales de S3 o Azure en Credenciales de almacenamiento · Global.')
+    bind_global_account(storage, settings)
     return settings[provider]

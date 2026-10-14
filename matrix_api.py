@@ -30,11 +30,22 @@ def company_paths(domain):
     return config, config_dir / 'matrices' / f'{domain}.json'
 
 
+def bind_matrix_accounts(matrix):
+    from storage_credentials import bind_global_account, load_credentials
+    settings = load_credentials()
+    bind_global_account(matrix['storage'], settings)
+    for branch in matrix['government'] + matrix['specific']:
+        for item in [branch] + branch.get('areas', []):
+            if item.get('storage'):
+                bind_global_account(item['storage'], settings)
+    return matrix
+
+
 def load_company_matrix(domain):
     config, path = company_paths(domain)
     if path.is_file():
-        return validate_matrix(json.loads(path.read_text(encoding='utf-8')))
-    return validate_matrix(default_matrix(config.get('site_name', domain)))
+        return bind_matrix_accounts(validate_matrix(json.loads(path.read_text(encoding='utf-8'))))
+    return bind_matrix_accounts(validate_matrix(default_matrix(config.get('site_name', domain))))
 
 
 def fetch_inventory(domain, plan):
@@ -79,6 +90,8 @@ def storage_targets():
             raise ValueError('Solicitud inválida.')
         from document_matrix import _storage
         storage = _storage(data.get('storage', {}))
+        from storage_credentials import bind_global_account
+        bind_global_account(storage)
         if not storage['provider']:
             raise ValueError('Selecciona S3 o Azure.')
         result = call_storage({'operation': 'destinations', 'storage': storage})
@@ -105,7 +118,7 @@ def get_matrix(domain):
 def save_matrix(domain):
     try:
         _, path = company_paths(domain)
-        matrix = validate_matrix(request.get_json(silent=True))
+        matrix = bind_matrix_accounts(validate_matrix(request.get_json(silent=True)))
         path.parent.mkdir(parents=True, exist_ok=True)
         with matrix_write_lock:
             temporary = None

@@ -276,8 +276,9 @@
           <div class="company-config-panels">
             <div class="settings-tabs company-settings-tabs" aria-label="Configuración de la empresa">
               <button type="button" class="settings-tab-btn active" id="company-site-btn" onclick="switchCompanySection('site')"><i class="fa-brands fa-wordpress" aria-hidden="true"></i>Sitio WordPress</button>
-              <button type="button" class="settings-tab-btn" id="company-matrix-btn" onclick="switchCompanySection('matrix')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Matriz y almacenamiento</button>
-              <button type="button" class="settings-tab-btn" id="company-storage-btn" {% if idpn_user and not idpn_user.admin %}hidden{% endif %} onclick="switchCompanySection('storage')"><svg class="ui-icon storage-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Acceso al almacenamiento <span class="settings-scope">Global</span></button>
+              <button type="button" class="settings-tab-btn" id="company-matrix-btn" onclick="switchCompanySection('matrix')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Matriz documental</button>
+              <button type="button" class="settings-tab-btn" id="company-destination-btn" onclick="switchCompanySection('destination')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Almacenamiento</button>
+              <button type="button" class="settings-tab-btn" id="company-storage-btn" {% if idpn_user and not idpn_user.admin %}hidden{% endif %} onclick="switchCompanySection('storage')"><svg class="ui-icon storage-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Credenciales de almacenamiento <span class="settings-scope">Global</span></button>
             </div>
         <div class="company-toolbar card" id="company-toolbar">
           <div class="form-group"><label for="config-company-select">Empresa</label><select id="config-company-select" onchange="selectConfig(this.value)"><option value="">Selecciona una empresa...</option></select></div>
@@ -465,6 +466,9 @@
             </div>
             <div id="company-matrix-panel" hidden>
               {% include 'matrix.html' %}
+            </div>
+            <div id="company-destination-panel" hidden>
+              {% include 'company_storage.html' %}
             </div>
             <div id="company-storage-panel" hidden>
               {% include 'storage_settings.html' %}

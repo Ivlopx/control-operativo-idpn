@@ -1,0 +1,17 @@
+<div class="tab-header"><h2>Almacenamiento de la empresa</h2><p>Selecciona el destino de los archivos y sus directorios.</p></div>
+<div id="destination-alert" class="matrix-message" role="status" hidden></div>
+<div class="card" id="destination-workspace" hidden>
+<form id="company-destination-form">
+        <div class="company-storage-settings">
+          <div class="form-group"><label for="matrix-provider">Almacenamiento predeterminado</label><select id="matrix-provider"><option value="">Pendiente de configurar</option><option value="s3">Amazon S3</option><option value="azure">Azure Blob Storage</option></select></div>
+          <div class="matrix-fields" id="matrix-destination-fields" hidden>
+          <div class="form-group"><label id="matrix-target-label" for="matrix-target">Bucket</label><input id="matrix-target" placeholder="documentos-empresa"></div>
+          <div class="form-group"><label for="matrix-root">Directorio raíz</label><input id="matrix-root" placeholder="empresa"></div>
+          <div class="form-group" id="matrix-region-group"><label for="matrix-region">Región S3</label><input id="matrix-region" placeholder="us-east-1"></div>
+          </div>
+        </div>
+        <button class="btn btn-secondary" type="button" id="matrix-list-targets" hidden><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg><span id="matrix-list-targets-label">Consultar destinos</span></button>
+        <datalist id="matrix-targets"></datalist>
+<details class="matrix-section"><summary>Destinos por procedimiento, proceso o área</summary><div id="destination-overrides"></div></details>
+<button type="submit" id="destination-save" class="btn btn-primary"><svg class="ui-icon" aria-hidden="true"><use href="#icon-save"></use></svg>Guardar almacenamiento</button>
+</form></div>

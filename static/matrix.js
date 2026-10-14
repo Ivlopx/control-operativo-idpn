@@ -66,12 +66,17 @@
       const option = node('option', caption); option.value = value; provider.append(option);
     }
     provider.value = storage.provider || 's3';
-    provider.addEventListener('change', () => {storage.provider = provider.value; dirty = true; invalidatePlan();});
     providerGroup.append(provider); fields.append(providerGroup);
-    field(fields, 'Bucket / contenedor', storage.target, value => storage.target = value);
-    field(fields, 'Raíz', storage.root, value => storage.root = value);
-    field(fields, 'Región S3', storage.region || matrix.storage.region || 'us-east-1', value => storage.region = value);
-    field(fields, 'Cuenta Azure', storage.account || matrix.storage.account || '', value => storage.account = value);
+    const target = field(fields, 'Bucket', storage.target, value => storage.target = value);
+    field(fields, 'Directorio raíz', storage.root, value => storage.root = value);
+    const region = field(fields, 'Región S3', storage.region || matrix.storage.region || 'us-east-1', value => storage.region = value);
+    const providerFields = () => {
+      storage.provider = provider.value;
+      target.parentElement.querySelector('label').textContent = provider.value === 'azure' ? 'Contenedor' : 'Bucket';
+      region.parentElement.hidden = provider.value !== 's3';
+    };
+    providerFields();
+    provider.addEventListener('change', () => {providerFields(); dirty = true; invalidatePlan();});
     const refresh = () => {
       fields.hidden = !checkbox.checked;
       if (checkbox.checked) {storage.provider = provider.value; item.storage = storage;}
@@ -91,8 +96,26 @@
     field(fields, 'Siglas', item.abbreviation, value => {item.abbreviation = value.toUpperCase(); renderChoices();}, 'Pendientes');
     field(fields, 'Directorio', item.directory, value => item.directory = value, 'Se deriva del nombre al guardar');
     row.append(fields, button('Quitar de la matriz', remove, 'btn matrix-remove'));
-    storageOverride(row, item);
+
     return row;
+  }
+  function renderDestinationOverrides() {
+    const container = el('destination-overrides');
+    container.replaceChildren();
+    for (const [scope, branches] of [['Gobierno', matrix.government], ['Específicos', matrix.specific]]) {
+      branches.forEach(branch => {
+        const group = node('div', undefined, 'destination-branch');
+        group.append(node('h4', `${scope} · ${branch.name}`));
+        storageOverride(group, branch);
+        (branch.areas || []).forEach(area => {
+          const row = node('div', undefined, 'destination-area');
+          row.append(node('h5', area.name));
+          storageOverride(row, area);
+          group.append(row);
+        });
+        container.append(group);
+      });
+    }
   }
   function renderAdmin() {
     el('matrix-name').value = matrix.company;
@@ -100,8 +123,9 @@
     el('matrix-target').value = matrix.storage.target;
     el('matrix-root').value = matrix.storage.root;
     el('matrix-region').value = matrix.storage.region || 'us-east-1';
-    el('matrix-account').value = matrix.storage.account || '';
+    renderStorageFields();
     el('matrix-target').setAttribute('list', 'matrix-targets');
+    renderDestinationOverrides();
     el('matrix-types').replaceChildren();
     matrix.types.forEach(type => {
       const row = node('div', undefined, 'matrix-fields matrix-type-row');
@@ -128,7 +152,7 @@
       group.append(header);
       const settings = node('details', undefined, 'matrix-process-settings');
       settings.append(node('summary', 'Ajustes del proceso'));
-      storageOverride(settings, process);
+
       settings.append(button('Quitar proceso', () => {
         matrix.specific = matrix.specific.filter(entry => entry.id !== process.id);
         dirty = true; renderAdmin(); renderChoices(); invalidatePlan();
@@ -340,8 +364,10 @@
     const requestId = ++pendingLoad;
     matrix = null; invalidatePlan();
     el('matrix-workspace').hidden = true;
+    el('destination-workspace').hidden = true;
     if (!domain) {
-      message('matrix-alert', 'Guarda la empresa en Sitio WordPress para configurar su matriz y almacenamiento.');
+      message('matrix-alert', 'Selecciona o crea una empresa para configurar su matriz.');
+      message('destination-alert', 'Selecciona o crea una empresa para configurar su almacenamiento.');
       return;
     }
     message('matrix-alert', 'Cargando matriz…');
@@ -350,14 +376,24 @@
       if (requestId !== pendingLoad) return;
       matrix = data; dirty = false;
       renderAdmin(); renderChoices();
-      el('matrix-workspace').hidden = false;
+      el('matrix-workspace').hidden = false; el('destination-workspace').hidden = false;
       message('matrix-alert', '');
-    } catch (error) {if (requestId === pendingLoad) message('matrix-alert', error.message, true);}
+      message('destination-alert', '');
+    } catch (error) {if (requestId === pendingLoad) {message('matrix-alert', error.message, true);message('destination-alert', error.message, true);}}
+  }
+  function renderStorageFields() {
+    const provider = el('matrix-provider').value;
+    el('matrix-destination-fields').hidden = !provider;
+    el('matrix-region-group').hidden = provider !== 's3';
+    el('matrix-target-label').textContent = provider === 'azure' ? 'Contenedor' : 'Bucket';
+    el('matrix-list-targets').hidden = !provider;
+    el('matrix-list-targets-label').textContent = provider === 'azure' ? 'Consultar contenedores' : 'Consultar buckets';
   }
   function collectStorage() {
     matrix.company = el('matrix-name').value.trim();
     matrix.storage = {provider: el('matrix-provider').value, target: el('matrix-target').value.trim(), root: el('matrix-root').value.trim(),
-      region: el('matrix-region').value.trim(), account: el('matrix-account').value.trim()};
+      region: el('matrix-region').value.trim(), account: matrix.storage.account || ''};
+    renderStorageFields();
   }
   function renderResult(plan) {
     const result = el('matrix-result-fields'); result.replaceChildren();
@@ -379,6 +415,17 @@
       el('storage-azure-account').value = settings.azure.account || '';
       el('storage-s3-status').textContent = settings.s3.configured ? 'Credenciales guardadas' : 'Sin configurar';
       el('storage-azure-status').textContent = settings.azure.configured ? 'Credenciales guardadas' : 'Sin configurar';
+      ['s3','azure'].forEach(provider => el(`storage-${provider}-status`).classList.toggle('configured', settings[provider].configured));
+      for (const [id, saved] of [
+        ['storage-s3-key', settings.s3.access_key_configured],
+        ['storage-s3-secret', settings.s3.secret_key_configured],
+        ['storage-s3-session', settings.s3.session_token_configured],
+        ['storage-azure-key', settings.azure.account_key_configured]
+      ]) {
+        el(id).placeholder = saved ? '••••••••••••' : '';
+        el(id).title = saved ? 'Clave guardada. Escribe para reemplazarla.' : '';
+      }
+
     }
     if (!window.idpnUser || window.idpnUser.admin) api('/api/storage-settings').then(showCredentialStatus).catch(error => message('storage-alert', error.message, true));
     el('storage-credentials-form').addEventListener('submit', async event => {
@@ -392,7 +439,7 @@
         ['storage-s3-key','storage-s3-secret','storage-s3-session','storage-azure-key'].forEach(id => el(id).value = '');
         el('storage-s3-clear-session').checked = false;
         showCredentialStatus(settings);
-        message('storage-alert','Credenciales guardadas. Selecciona el bucket o contenedor en la matriz de cada empresa.');
+        message('storage-alert','Credenciales guardadas. Selecciona el bucket o contenedor en Almacenamiento de cada empresa.');
         invalidatePlan();
       } catch(error) {message('storage-alert',error.message,true);}
       finally {el('storage-credentials-save').disabled = false;}
@@ -450,7 +497,7 @@
       el('classification-fields').disabled = true;
       detectionTimer = setTimeout(detectClassification, 450);
     });
-    ['matrix-name', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region', 'matrix-account'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
+    ['matrix-name', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
     el('matrix-list-targets').addEventListener('click', async () => {
       collectStorage();
       el('matrix-list-targets').disabled = true;
@@ -458,21 +505,25 @@
         const result = await api('/api/storage-targets', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({storage:matrix.storage})});
         el('matrix-targets').replaceChildren();
         result.targets.forEach(target => {const option=node('option',target.name);option.value=target.name;el('matrix-targets').append(option);});
-        message('matrix-alert', `${result.targets.length} destinos disponibles. Selecciona uno en Bucket / contenedor y confirma su región si usas S3.`);
-      } catch(error) {message('matrix-alert',error.message,true);}
+        message('destination-alert', `${result.targets.length} destinos disponibles. Selecciona uno en Bucket / contenedor y confirma su región si usas S3.`);
+      } catch(error) {message('destination-alert',error.message,true);}
       finally {el('matrix-list-targets').disabled = false;}
     });
-    el('matrix-admin-form').addEventListener('submit', async event => {
+    async function saveCompanyMatrix(event, storageOnly) {
       event.preventDefault(); collectStorage();
       const savingDomain = domain;
-      el('matrix-save').disabled = true;
+      const saveButton = el(storageOnly ? 'destination-save' : 'matrix-save');
+      const alert = storageOnly ? 'destination-alert' : 'matrix-alert';
+      saveButton.disabled = true;
       try {
         const result = await api(`/api/matrices/${encodeURIComponent(domain)}`, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(matrix)});
         if (domain !== savingDomain) return;
         matrix = result.matrix; dirty = false; renderAdmin(); if (operationDomain === domain) {operationMatrix = structuredClone(matrix);renderChoices();} invalidatePlan();
-        message('matrix-alert', 'Matriz guardada. Los cambios de directorio se aplicarán a documentos futuros; no mueven archivos existentes.');
-      } catch (error) {if (domain === savingDomain) message('matrix-alert', error.message, true);}
-      finally {el('matrix-save').disabled = false;}
-    });
+        message(alert, storageOnly ? 'Almacenamiento guardado.' : 'Matriz guardada. Los cambios de directorio se aplicarán a documentos futuros; no mueven archivos existentes.');
+      } catch (error) {if (domain === savingDomain) message(alert, error.message, true);}
+      finally {saveButton.disabled = false;}
+    }
+    el('matrix-admin-form').addEventListener('submit', event => saveCompanyMatrix(event, false));
+    el('company-destination-form').addEventListener('submit', event => saveCompanyMatrix(event, true));
   });
 })();

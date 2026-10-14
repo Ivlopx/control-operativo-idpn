@@ -203,9 +203,9 @@ function autoDetectSite(val, selectId) {
 // Tab Navigation (Dashboard vs Settings)
 function switchCompanySection(section, updateHistory = true) {
   if (section === 'storage' && window.idpnUser && !window.idpnUser.admin) section = 'site';
-  if (!['site','matrix','storage'].includes(section)) section = 'site';
+  if (!['site','matrix','destination','storage'].includes(section)) section = 'site';
   document.getElementById('company-toolbar').hidden = section === 'storage';
-  ['site', 'matrix', 'storage'].forEach(name => {
+  ['site', 'matrix', 'destination', 'storage'].forEach(name => {
     document.getElementById(`company-${name}-panel`).hidden = name !== section;
     document.getElementById(`company-${name}-btn`).classList.toggle('active', name === section);
   });
@@ -245,7 +245,7 @@ function switchTab(tabId, updateHistory = true) {
   
   if (updateHistory && tabId === 'settings') {
     updateSectionUrl('settings');
-    const active = ['site','matrix','storage'].find(name => document.getElementById(`company-${name}-btn`).classList.contains('active')) || 'site';
+    const active = ['site','matrix','destination','storage'].find(name => document.getElementById(`company-${name}-btn`).classList.contains('active')) || 'site';
     history.replaceState({}, '', active === 'site' ? '/configuracion' : '/configuracion?seccion='+active);
   }
 

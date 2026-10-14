@@ -6,13 +6,13 @@ La aplicación conecta directamente con Amazon S3 y Azure Blob Storage. Ya no re
 
 En el entorno que ejecuta la aplicación, instalar `requirements.txt` y reiniciar. Si se despliega en Docker, reconstruir la imagen de esta aplicación con esas dependencias. No hay que modificar el contenedor de n8n.
 
-En **Configuración → Acceso al almacenamiento · Global**:
+En **Configuración → Credenciales de almacenamiento · Global**:
 
 - Amazon S3: Access Key ID y Secret Access Key. Session Token solo para credenciales temporales; deberán renovarse al caducar. Existe una opción para quitar el token al cambiar a claves permanentes.
 - Azure: nombre de cuenta y Account Key, disponible en Storage Account → Access keys.
 
 
-Guardar y luego seleccionar, en **Matriz y almacenamiento**, el proveedor, bucket/contenedor, región de S3 o cuenta de Azure. “Consultar destinos” comprueba acceso y lista los destinos existentes. No crea buckets ni contenedores: las rutas dentro de ellos aparecen automáticamente al subir objetos.
+Guardar y luego seleccionar, en **Almacenamiento** de la empresa, el proveedor y su destino: S3 muestra bucket, directorio raíz y región; Azure muestra contenedor y directorio raíz. La cuenta Azure se toma automáticamente de las credenciales globales, también en los destinos propios de procesos y áreas. Mientras el proveedor esté pendiente, los campos de destino permanecen ocultos. “Consultar destinos” comprueba acceso y lista los destinos existentes. No crea buckets ni contenedores: las rutas dentro de ellos aparecen automáticamente al subir objetos.
 
 Se mantiene una identidad AWS y una cuenta Azure globales. Pueden emplearse múltiples buckets S3 y múltiples contenedores de esa cuenta Azure, seleccionados por empresa o rama. Cambiar de cuenta Azure requiere introducir su nueva clave.
 

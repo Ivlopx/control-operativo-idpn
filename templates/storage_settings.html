@@ -1,20 +1,26 @@
 <div class="storage-connection card">
-  <h3>Acceso al almacenamiento · Global</h3>
-  <p class="matrix-hint">Credenciales compartidas por las empresas. Los destinos se seleccionan en cada matriz. Deja los campos de claves vacíos para conservar las guardadas.</p>
+  <div class="credential-heading"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"></use></svg><h3>Credenciales de almacenamiento</h3><span class="settings-scope">Global</span></div>
+  <p class="matrix-hint">Credenciales compartidas por las empresas. Los destinos se seleccionan en Almacenamiento de cada empresa. Deja los campos de claves vacíos para conservar las guardadas.</p>
   <form id="storage-credentials-form">
-    <h4 class="cloud-provider-title"><svg class="ui-icon cloud-s3-icon" aria-hidden="true"><use href="#icon-s3"></use></svg>Amazon S3</h4><p id="storage-s3-status" role="status"></p>
+    <div class="credential-grid">
+    <section class="credential-provider">
+    <h4 class="cloud-provider-title"><svg class="ui-icon cloud-s3-icon" aria-hidden="true"><use href="#icon-s3"></use></svg>Amazon S3</h4><p class="credential-status" id="storage-s3-status" role="status"></p>
     <div class="matrix-fields">
       <div class="form-group"><label for="storage-s3-key">Access Key ID</label><input id="storage-s3-key" type="password" autocomplete="new-password"></div>
       <div class="form-group"><label for="storage-s3-secret">Secret Access Key</label><input id="storage-s3-secret" type="password" autocomplete="new-password"></div>
       <div class="form-group"><label for="storage-s3-session">Session Token (opcional)</label><input id="storage-s3-session" type="password" autocomplete="new-password"></div>
     </div>
     <label class="checkbox-label"><input type="checkbox" id="storage-s3-clear-session"> Quitar el token de sesión guardado</label>
-    <h4 class="cloud-provider-title"><svg class="ui-icon cloud-azure-icon" aria-hidden="true"><use href="#icon-azure"></use></svg>Azure Blob Storage</h4><p id="storage-azure-status" role="status"></p>
+    </section>
+    <section class="credential-provider">
+    <h4 class="cloud-provider-title"><svg class="ui-icon cloud-azure-icon" aria-hidden="true"><use href="#icon-azure"></use></svg>Azure Blob Storage</h4><p class="credential-status" id="storage-azure-status" role="status"></p>
     <div class="matrix-fields">
       <div class="form-group"><label for="storage-azure-account">Nombre de la cuenta</label><input id="storage-azure-account" autocomplete="off"></div>
       <div class="form-group"><label for="storage-azure-key">Account Key</label><input id="storage-azure-key" type="password" autocomplete="new-password"></div>
     </div>
-    <button class="btn btn-secondary" type="submit" id="storage-credentials-save">Guardar credenciales</button>
+    </section>
+    </div>
+    <div class="credential-actions"><button class="btn btn-primary" type="submit" id="storage-credentials-save"><svg class="ui-icon" aria-hidden="true"><use href="#icon-save"></use></svg>Guardar credenciales</button></div>
   </form>
   <div class="matrix-message" id="storage-alert" role="status" hidden></div>
 </div>
