@@ -182,7 +182,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#input-nombre-p1').fill('Política de calidad')
         self.page.locator('#matrix-file').set_input_files({'name':'original.pdf','mimeType':'application/pdf','buffer':b'%PDF test'})
         self.page.locator('#matrix-result').wait_for(state='visible')
-        self.assertIn('/administracion/recursos-humanos/politicas', self.page.locator('#matrix-result').inner_text())
+        self.assertIn('/administracion/recursosHumanos/politicas', self.page.locator('#matrix-result').inner_text())
         self.assertIn('politica-de-calidad-vNNN.pdf', self.page.locator('#matrix-result').inner_text())
         metadata = self.page.evaluate('window.documentOperation.metadata()')
         self.assertEqual(metadata['code'], '')
@@ -483,7 +483,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#matrix-result').wait_for(state='visible')
         self.assertEqual(self.page.locator('#matrix-branch').input_value(), 'control-de-documentos')
         self.assertEqual(self.page.locator('#input-codigo-p1').input_value(), 'PG-D-CNO-003')
-        self.assertIn('control-de-documentos', self.page.locator('#matrix-result').inner_text())
+        self.assertIn('controlDeDocumentos', self.page.locator('#matrix-result').inner_text())
         self.assertEqual(self.errors, [])
 
     def test_connection_can_be_saved_and_destinations_selected_without_exposing_token(self):
@@ -521,7 +521,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#matrix-result').wait_for(state='visible')
         self.assertIn('IG-D-PRY-003', self.page.locator('#matrix-result').inner_text())
         stored = json.loads((self.root / 'matrices/zhipos-idpn.net.json').read_text())
-        self.assertEqual(stored['government'][-1]['directory'], 'gestion-de-proyectos')
+        self.assertEqual(stored['government'][-1]['directory'], 'gestionDeProyectos')
         self.assertEqual(self.errors, [])
 
 

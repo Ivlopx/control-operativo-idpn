@@ -37,7 +37,7 @@ directorios para altas, nuevas versiones y bajas. Los formularios no se almacena
 
 Las operaciones de S3 y Azure se ejecutan directamente en Python con sus SDK oficiales. Las versiones se calculan consultando el inventario completo. Configura **Acceso al almacenamiento · Global**, después el destino en la matriz de cada empresa. No se necesita n8n.
 
-La baja requiere un archivo testigo: el primer proceso lo guarda en BAJA y publica la página, dejando activos los antecedentes. El segundo proceso, con el mismo folio, limpia Cognito y el folio en WordPress y después archiva antecedentes, verificando las copias y retirando los duplicados del testigo.
+La baja requiere un archivo testigo: el primer proceso lo guarda en baja y publica la página, dejando activos los antecedentes. El segundo proceso, con el mismo folio, limpia Cognito y el folio en WordPress y después archiva antecedentes, verificando las copias y retirando los duplicados del testigo.
 
 Ver [configuración del almacenamiento propio](docs/almacenamiento-propio.md). Los workflows anteriores permanecen como referencia histórica; la aplicación ya no los invoca.
 

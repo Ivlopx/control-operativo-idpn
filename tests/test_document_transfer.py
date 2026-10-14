@@ -54,7 +54,7 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(response.status_code,200,response.get_json())
         page_data = thread.call_args.kwargs['args'][2]
         self.assertEqual(page_data['codigo'],'FE-A-RHS-003')
-        self.assertIn('/control-de-no-conformes/procedimientos',page_data['document_plan']['classification_directory'])
+        self.assertIn('/controlDeNoConformes/procedimientos',page_data['document_plan']['classification_directory'])
         self.assertFalse(page_data['is_politica'])
         self.assertEqual(Path(page_data['temporary_file']).read_bytes(),b'%PDF-1.4 test')
         self.assertEqual(page_data['document_plan']['site'],'zhipos-idpn.net')
@@ -90,7 +90,7 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(plan['code'], '')
         self.assertEqual(page_data['codigo'], '')
         self.assertTrue(plan['is_politica'])
-        self.assertTrue(plan['classification_directory'].endswith('/recursos-humanos/politicas'))
+        self.assertTrue(plan['classification_directory'].endswith('/recursosHumanos/politicas'))
         result = {'success':True,'operation_id':page_data['operation_id'],'code':'','action':'alta','version':'v001',
                   'filename':'politica-de-calidad-v001.pdf', 'key':plan['classification_directory']+'/politica-de-calidad-v001.pdf',
                   'url':'https://files.test/politica.pdf', 'download_url':'https://files.test/download'}
@@ -131,8 +131,8 @@ class TransferTests(unittest.TestCase):
         args=thread.call_args.kwargs['args']; plan=args[2]['document_plan']
         result={'success':True,'operation_id':args[2]['operation_id'],'code':plan['code'],'action':'baja', 'version':'v001','sha256':hashlib.sha256(b'%PDF-1.4 test').hexdigest(),'size':len(b'%PDF-1.4 test'),
                 'filename':'FE-A-RHS-003-control-de-no-conformes-v001.pdf',
-                'key':plan['classification_directory']+'/BAJA/FE-A-RHS-003-control-de-no-conformes-v001.pdf',
-                'url':'https://files.test/BAJA/reference.pdf','download_url':'https://files.test/download'}
+                'key':plan['classification_directory']+'/baja/FE-A-RHS-003-control-de-no-conformes-v001.pdf',
+                'url':'https://files.test/baja/reference.pdf','download_url':'https://files.test/download'}
         with application.app.app_context(),patch('storage_engine.execute_storage', return_value=result) as remote:
             self.assertEqual(transfer_document(plan,args[2]['operation_id'],args[2]['temporary_file'])['key'],result['key'])
             self.assertEqual(remote.call_count, 1)
@@ -147,7 +147,7 @@ class TransferTests(unittest.TestCase):
                 'name':'Control','classification_directory':'zhipos/gobierno/procedimientos','storage':{'provider':'s3','target':'bucket','region':'us-east-1'}}
         with application.app.app_context():
             record = prepare_record(plan,'operation-1234567890','268123')
-            attach_reference(record,{'key':plan['classification_directory']+'/BAJA/file.pdf','sha256':'a'*64,'size':12,'version':'v001'})
+            attach_reference(record,{'key':plan['classification_directory']+'/baja/file.pdf','sha256':'a'*64,'size':12,'version':'v001'})
             record['published']=True;save_record(record)
         ordering=[]
         def cleanup(**kwargs):
@@ -223,12 +223,12 @@ class TransferTests(unittest.TestCase):
         base = plan['classification_directory']
         names = ['PG-D-CNO-003-control-v001.pdf', 'PG-D-CNO-003-control-v002.pdf']
         result = {'success':True, 'operation_id':'operation-1234567890', 'code':plan['code'], 'action':'baja',
-                  'filename':names[-1], 'key':base+'/BAJA/'+names[-1], 'version':'v002',
-                  'url':'https://files.test/BAJA/file.pdf', 'download_url':'https://files.test/download',
-                  'archived':[{'source_key':base+'/'+name, 'key':base+'/BAJA/'+name} for name in names]}
+                  'filename':names[-1], 'key':base+'/baja/'+names[-1], 'version':'v002',
+                  'url':'https://files.test/baja/file.pdf', 'download_url':'https://files.test/download',
+                  'archived':[{'source_key':base+'/'+name, 'key':base+'/baja/'+name} for name in names]}
         with application.app.app_context(), patch('storage_engine.execute_storage', return_value=result):
             self.assertEqual(transfer_document(plan, 'operation-1234567890')['version'], 'v002')
-            result['filename'] = names[0]; result['key'] = base+'/BAJA/'+names[0]
+            result['filename'] = names[0]; result['key'] = base+'/baja/'+names[0]
             with self.assertRaises(ValueError):
                 transfer_document(plan, 'operation-1234567890')
 

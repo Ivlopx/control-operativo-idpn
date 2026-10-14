@@ -23,7 +23,7 @@ def file_matches(meta, key):
     if not key.startswith(directory):
         return False
     relative = key[len(directory):]
-    if '/' in relative and not re.fullmatch(r'BAJA/[^/]+', relative):
+    if '/' in relative and not re.fullmatch(r'baja/[^/]+', relative):
         return False
     identity = re.escape(slug(meta['name']) if meta.get('is_politica') else meta['code'])
     pattern = identity + (r'(?:-v[0-9]{3,})?' if meta.get('is_politica') else r'-.+') + r'\.(?:pdf|docx?|xlsx?|pptx?)'
@@ -63,7 +63,7 @@ def execute_storage(meta, temporary_file=None, provider=None):
         raise ValueError('Selecciona un PDF o archivo Office de hasta 15 MiB y su nombre.')
     reference = meta.get('reference')
     if action == 'finalizar_baja':
-        prefix = meta['directory'] + '/BAJA/'
+        prefix = meta['directory'] + '/baja/'
         if content is not None or not isinstance(reference, dict) or not valid_path(reference.get('key')) or not reference['key'].startswith(prefix) or '/' in reference['key'][len(prefix):] or not file_matches(meta, reference['key']) or not re.fullmatch(r'[a-f0-9]{64}', str(reference.get('sha256', ''))) or type(reference.get('size')) is not int or reference['size'] <= 0:
             raise ValueError('Referencia de baja inválida.')
     identity = 'POLICY-' + slug(meta['name']) if policy else meta['code'].upper()
@@ -104,12 +104,12 @@ def execute_storage(meta, temporary_file=None, provider=None):
                 raise ValueError('El documento existe; selecciona Nueva versión.')
             if action == 'version' and not files:
                 raise ValueError('El documento no existe; selecciona Alta.')
-            old = [dict(item, destination=meta['directory'] + '/BAJA/' + item['key'].split('/')[-1], archived=False)
-                   for item in files if not item['key'][len(meta['directory']) + 1:].startswith('BAJA/')]
+            old = [dict(item, destination=meta['directory'] + '/baja/' + item['key'].split('/')[-1], archived=False)
+                   for item in files if not item['key'][len(meta['directory']) + 1:].startswith('baja/')]
             numbers = [int(match[1]) for item in files if (match := re.search(r'-v(\d{3,})\.[^.]+$', item['key'], re.I))]
             version = 'v' + str(max(numbers, default=0) + 1).zfill(3)
             filename = (meta['code'] + '-' if not policy else '') + slug(meta['name']) + '-' + version + '.' + (extension or 'pdf')
-            key = meta['directory'] + ('/BAJA/' if action == 'baja' else '/') + filename
+            key = meta['directory'] + ('/baja/' if action == 'baja' else '/') + filename
             if action == 'finalizar_baja':
                 version, key, filename = reference['version'], reference['key'], reference['key'].split('/')[-1]
             record = {'operation_id': op, 'action': action, 'code': meta['code'], 'directory': meta['directory'],

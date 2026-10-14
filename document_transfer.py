@@ -27,7 +27,7 @@ def transfer_document(plan, operation_id, temporary_file=None):
             raise ValueError('El almacenamiento no devolvió una versión válida.')
         extension = Path(temporary_file).suffix.lower()
         filename = f'{(plan["code"]+"-") if plan["code"] else ""}{slug(plan["name"])}-{version}{extension}'
-        if result.get('filename') != filename or result.get('key') != plan['classification_directory']+('/BAJA/' if plan['action']=='baja' else '/')+filename:
+        if result.get('filename') != filename or result.get('key') != plan['classification_directory']+('/baja/' if plan['action']=='baja' else '/')+filename:
             raise ValueError('El almacenamiento devolvió un nombre o directorio diferente al calculado por la matriz.')
     else:
         identity = re.escape(slug(plan['name'])) if plan.get('is_politica') else re.escape(plan['code'])+r'-.+'
@@ -39,7 +39,7 @@ def transfer_document(plan, operation_id, temporary_file=None):
             if not isinstance(item, dict):
                 raise ValueError('Inventario de baja inválido.')
             filename = str(item.get('key', '')).split('/')[-1]
-            if not pattern.fullmatch(filename) or item.get('key') != plan['classification_directory']+'/BAJA/'+filename or item.get('source_key') != plan['classification_directory']+'/'+filename:
+            if not pattern.fullmatch(filename) or item.get('key') != plan['classification_directory']+'/baja/'+filename or item.get('source_key') != plan['classification_directory']+'/'+filename:
                 raise ValueError('La baja devolvió un archivo fuera del directorio del documento.')
         def rank(item):
             match = re.search(r'-v([0-9]{3,})\.[^.]+$', item['key'], re.I)

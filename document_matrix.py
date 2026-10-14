@@ -23,9 +23,20 @@ def slug(value):
     return value
 
 
+def directory_name(value):
+    """Normalize directory labels, including existing camel case and slugs."""
+    value = unicodedata.normalize('NFKD', str(value)).encode('ascii', 'ignore').decode()
+    value = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', value)
+    value = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', value)
+    words = re.findall(r'[a-zA-Z0-9]+', value)
+    if not words:
+        raise ValueError('El nombre debe contener letras o números.')
+    return words[0].lower() + ''.join(word.lower().capitalize() for word in words[1:])
+
+
 def default_matrix(company, zhipos=False):
     matrix = {'schema_version': 1, 'company': company,
-              'storage': {'provider': '', 'target': '', 'root': slug(company)},
+              'storage': {'provider': '', 'target': '', 'root': directory_name(company)},
               'types': deepcopy(TYPES), 'government': [], 'specific': []}
     if zhipos:
         for name, abbreviation in [
@@ -50,7 +61,7 @@ def _segment(value):
     value = str(value).strip()
     if '/' in value or '\\' in value or value in ('.', '..'):
         raise ValueError('Cada directorio debe ser un nombre, sin separadores ni rutas relativas.')
-    return slug(value)
+    return directory_name(value)
 
 
 def _storage(value):
@@ -183,7 +194,7 @@ def plan_document(matrix, data, inventory=None):
     for item in [branch] + ([area] if area else []):
         if item.get('storage'):
             storage.update(item['storage'])
-    folders = ['procedimientos-de-gobierno' if scope == 'government' else 'procedimientos-especificos', branch['directory']]
+    folders = ['procedimientosDeGobierno' if scope == 'government' else 'procedimientosEspecificos', branch['directory']]
     if area:
         folders.append(area['directory'])
     folders.append(doc_type['directory'])
@@ -213,15 +224,15 @@ def plan_document(matrix, data, inventory=None):
             if not key.startswith(directory + '/'):
                 continue
             relative = key[len(directory) + 1:]
-            if '/' in relative and not (relative.startswith('BAJA/') and '/' not in relative[5:]):
+            if '/' in relative and not (relative.startswith('baja/') and '/' not in relative[5:]):
                 continue
             basename = PurePosixPath(relative).name
             match = pattern.fullmatch(basename)
             if match or legacy_pattern.fullmatch(basename):
-                versions.append({'key': key, 'version': int(match.group(1)) if match else 0, 'legacy': not bool(match), 'archived': relative.startswith('BAJA/'),
+                versions.append({'key': key, 'version': int(match.group(1)) if match else 0, 'legacy': not bool(match), 'archived': relative.startswith('baja/'),
                                  'etag': item.get('etag')})
     active = [item for item in versions if not item['archived']]
-    archive_operations = [{'source_key': item['key'], 'destination_key': f'{directory}/BAJA/{PurePosixPath(item["key"]).name}',
+    archive_operations = [{'source_key': item['key'], 'destination_key': f'{directory}/baja/{PurePosixPath(item["key"]).name}',
                            'source_etag': item['etag']} for item in active]
     result.update({'stored_versions': sorted(versions, key=lambda item: item['version']),
                    'archive_operations': archive_operations if action in ('version', 'baja') else [],
@@ -231,7 +242,7 @@ def plan_document(matrix, data, inventory=None):
     if action == 'baja' and not baja_upload:
         if inventory is not None and not active:
             raise ValueError('No hay versiones activas de este documento para dar de baja.')
-        result.update({'directory': f'{directory}/BAJA', 'version': None})
+        result.update({'directory': f'{directory}/baja', 'version': None})
         return result
     if inventory is not None and versions and action == 'alta':
         raise ValueError('Este código ya tiene versiones guardadas. Usa «Nueva versión».')
@@ -245,16 +256,16 @@ def plan_document(matrix, data, inventory=None):
     if ext not in ALLOWED_EXTENSIONS:
         raise ValueError('Selecciona un archivo PDF, Word, Excel o PowerPoint.')
     if inventory is None:
-        result.update({'name': name, 'directory': directory + ('/BAJA' if action == 'baja' else ''), 'version': None,
+        result.update({'name': name, 'directory': directory + ('/baja' if action == 'baja' else ''), 'version': None,
                        'filename_template': f'{(code+"-") if code else ""}{slug(name)}-vNNN{ext}'})
         return result
     version = f'v{max((item["version"] for item in versions), default=0) + 1:03d}'
     filename = f'{(code+"-") if code else ""}{slug(name)}-{version}{ext}'
     active_key = f'{directory}/{filename}'
-    archive_key = f'{directory}/BAJA/{filename}'
+    archive_key = f'{directory}/baja/{filename}'
     result.update({'name': name, 'version': version, 'filename': filename,
                    'active_key': active_key, 'archive_key': archive_key,
-                   'directory': directory + ('/BAJA' if action == 'baja' else ''),
+                   'directory': directory + ('/baja' if action == 'baja' else ''),
                    'key': archive_key if action == 'baja' else active_key,
                    'preserve_previous_versions': True, 'overwrite': False})
     return result

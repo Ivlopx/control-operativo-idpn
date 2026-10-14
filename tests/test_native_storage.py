@@ -42,7 +42,7 @@ class MemoryStorage:
                 raise StorageError(412)
         elif key in self.objects:
             raise StorageError(412)
-        if '/BAJA/' in key:
+        if '/baja/' in key:
             if self.fail_archive:
                 raise StorageError(500)
             if self.corrupt_archive:
@@ -84,7 +84,7 @@ class NativeLifecycleTests(unittest.TestCase):
         return execute_storage({**self.meta, **changes}, str(self.file), self.cloud)
 
     def active_keys(self):
-        return [k for k in self.cloud.objects if '.idpn' not in k and '/BAJA/' not in k]
+        return [k for k in self.cloud.objects if '.idpn' not in k and '/baja/' not in k]
 
     def test_creates_directory_and_first_version_and_retry_is_identical(self):
         first = self.run_op()
@@ -105,13 +105,13 @@ class NativeLifecycleTests(unittest.TestCase):
         first = self.run_op()
         witness = self.run_op(action='baja', defer_archive=True, operation_id='operation-2234567890')
         self.assertIn(first['key'], self.cloud.objects)
-        self.assertIn('/BAJA/', witness['key'])
+        self.assertIn('/baja/', witness['key'])
         reference = {k:witness[k] for k in ['key','sha256','size','version']}
         final = execute_storage({**self.meta, 'action':'finalizar_baja','operation_id':'final-operation-1234567890', 'reference':reference}, provider=self.cloud)
         again = execute_storage({**self.meta, 'action':'finalizar_baja','operation_id':'final-operation-1234567890', 'reference':reference}, provider=self.cloud)
         self.assertEqual(final, again)
         self.assertEqual(self.active_keys(), [])
-        self.assertEqual([k for k in self.cloud.objects if '/BAJA/' in k], [witness['key']])
+        self.assertEqual([k for k in self.cloud.objects if '/baja/' in k], [witness['key']])
 
     def test_changed_witness_blocks_all_archival(self):
         first = self.run_op()
@@ -124,7 +124,7 @@ class NativeLifecycleTests(unittest.TestCase):
 
     def test_conflicting_archive_preserves_original(self):
         first = self.run_op()
-        archive = self.meta['directory']+'/BAJA/'+first['filename']
+        archive = self.meta['directory']+'/baja/'+first['filename']
         self.cloud.put(archive, b'other')
         self.file.write_bytes(b'new')
         with self.assertRaises(ValueError):

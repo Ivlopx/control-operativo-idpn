@@ -25,9 +25,9 @@ Permisos para la identidad AWS: listar buckets (para el selector), listar objeto
 ## Operaciones
 
 - Alta: primera versión `v001`; rechaza un documento que ya exista.
-- Nueva versión: máximo de las versiones activas y BAJA + 1; verifica el nuevo archivo antes de archivar las versiones activas.
-- Baja, primer proceso: requiere archivo y folio, guarda el testigo directamente en BAJA, publica la página y deja activos los antecedentes.
-- Baja, segundo proceso: usar el folio de la página testigo. Primero confirma la limpieza de Cognito y folio en WordPress; después verifica el testigo, copia los antecedentes a BAJA y verifica sus bytes antes de retirar los originales. Si un antecedente es idéntico al testigo, conserva este y retira la copia activa sin generar otro duplicado.
+- Nueva versión: máximo de las versiones activas y baja + 1; verifica el nuevo archivo antes de archivar las versiones activas.
+- Baja, primer proceso: requiere archivo y folio, guarda el testigo directamente en baja, publica la página y deja activos los antecedentes.
+- Baja, segundo proceso: usar el folio de la página testigo. Primero confirma la limpieza de Cognito y folio en WordPress; después verifica el testigo, copia los antecedentes a baja y verifica sus bytes antes de retirar los originales. Si un antecedente es idéntico al testigo, conserva este y retira la copia activa sin generar otro duplicado.
 - Formularios Web: alta/baja solo publican en WordPress; no usan el almacenamiento.
 - Políticas: sin código; identidad por nombre y directorio, ubicación manual y versiones automáticas.
 
@@ -50,3 +50,5 @@ Antes de producción: validar con un documento de prueba alta, descarga desde Wo
 - [Azure: BlobClient y condiciones de acceso](https://learn.microsoft.com/python/api/azure-storage-blob/azure.storage.blob.blobclient)
 
 - [Comportamiento del enlace HTML y atributo download](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a)
+
+Los directorios se normalizan a lowerCamelCase, sin acentos ni espacios: `procedimientosDeGobierno/controlDeDocumentos` o `procedimientosEspecificos/administracion/recursosHumanos`. La carpeta de archivo es `baja`. Los códigos, identificadores internos y nombres de archivo conservan su convención. Al actualizar una instalación sin documentos, las matrices existentes se normalizan al cargarse y guardarse; este cambio no mueve objetos previamente almacenados.

@@ -4,7 +4,9 @@
   "storage": {
     "provider": "",
     "target": "",
-    "root": "empresa-de-ejemplo"
+    "root": "empresaDeEjemplo",
+    "region": "us-east-1",
+    "account": ""
   },
   "types": [
     {
@@ -12,75 +14,88 @@
       "name": "Procedimientos",
       "government_prefix": "PG-D",
       "specific_prefix": "PE",
-      "store_file": true
+      "store_file": true,
+      "directory": "procedimientos"
     },
     {
       "id": "instructivo",
       "name": "Instructivos",
       "government_prefix": "IG-D",
       "specific_prefix": "IE",
-      "store_file": true
+      "store_file": true,
+      "directory": "instructivos"
     },
     {
       "id": "formato",
       "name": "Formatos",
       "government_prefix": "FG-D",
       "specific_prefix": "FE",
-      "store_file": true
+      "store_file": true,
+      "directory": "formatos"
     },
     {
       "id": "formulario",
       "name": "Formularios",
       "government_prefix": "FG-D",
       "specific_prefix": "FE",
-      "store_file": false
+      "store_file": false,
+      "directory": "formularios"
     }
   ],
   "government": [
     {
       "id": "control-de-documentos",
       "name": "Control de Documentos",
-      "abbreviation": "CON"
+      "abbreviation": "CON",
+      "directory": "controlDeDocumentos"
     },
     {
       "id": "control-de-registros",
       "name": "Control de Registros",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "controlDeRegistros"
     },
     {
       "id": "control-de-no-conformes",
       "name": "Control de No Conformes",
-      "abbreviation": "CNO"
+      "abbreviation": "CNO",
+      "directory": "controlDeNoConformes"
     },
     {
       "id": "acciones-correctivas",
       "name": "Acciones Correctivas",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "accionesCorrectivas"
     },
     {
       "id": "gestion-de-riesgos",
       "name": "Gestión de Riesgos",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "gestionDeRiesgos"
     },
     {
       "id": "auditoria-interna",
       "name": "Auditoría Interna",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "auditoriaInterna"
     },
     {
       "id": "infraestructura",
       "name": "Infraestructura",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "infraestructura"
     },
     {
       "id": "mejora-continua",
       "name": "Mejora Continua",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "mejoraContinua"
     },
     {
       "id": "revision-por-la-direccion",
       "name": "Revisión por la Dirección",
-      "abbreviation": ""
+      "abbreviation": "",
+      "directory": "revisionPorLaDireccion"
     }
   ],
   "specific": [
@@ -88,16 +103,19 @@
       "id": "comercial",
       "name": "Comercial",
       "abbreviation": "C",
+      "directory": "comercial",
       "areas": [
         {
           "id": "administracion-de-ventas",
           "name": "Administración de Ventas",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "administracionDeVentas"
         },
         {
           "id": "atencion-de-cliente",
           "name": "Atención de Cliente",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "atencionDeCliente"
         }
       ]
     },
@@ -105,26 +123,31 @@
       "id": "operaciones",
       "name": "Operaciones",
       "abbreviation": "O",
+      "directory": "operaciones",
       "areas": [
         {
           "id": "produccion",
           "name": "Producción",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "produccion"
         },
         {
           "id": "mantenimiento",
           "name": "Mantenimiento",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "mantenimiento"
         },
         {
           "id": "logistica-y-distribucion",
           "name": "Logística y Distribución",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "logisticaYDistribucion"
         },
         {
           "id": "almacen",
           "name": "Almacén",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "almacen"
         }
       ]
     },
@@ -132,26 +155,31 @@
       "id": "administracion",
       "name": "Administración",
       "abbreviation": "A",
+      "directory": "administracion",
       "areas": [
         {
           "id": "contabilidad",
           "name": "Contabilidad",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "contabilidad"
         },
         {
           "id": "recursos-humanos",
           "name": "Recursos Humanos",
-          "abbreviation": "RHS"
+          "abbreviation": "RHS",
+          "directory": "recursosHumanos"
         },
         {
           "id": "tesoreria",
           "name": "Tesorería",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "tesoreria"
         },
         {
           "id": "compras",
           "name": "Compras",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "compras"
         }
       ]
     },
@@ -159,16 +187,19 @@
       "id": "ingenieria",
       "name": "Ingeniería",
       "abbreviation": "I",
+      "directory": "ingenieria",
       "areas": [
         {
           "id": "desarrollo-de-productos-nuevos",
           "name": "Desarrollo de Productos Nuevos",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "desarrolloDeProductosNuevos"
         },
         {
           "id": "ingenieria-de-calidad",
           "name": "Ingeniería de Calidad",
-          "abbreviation": ""
+          "abbreviation": "",
+          "directory": "ingenieriaDeCalidad"
         }
       ]
     }
