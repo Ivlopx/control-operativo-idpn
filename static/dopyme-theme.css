@@ -577,3 +577,38 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-color);
 .matrix-category > summary {padding:14px 0; color:var(--accent-color);}
 .matrix-category > summary:focus-visible {outline:2px solid var(--accent-color); outline-offset:4px; border-radius:4px;}
 .matrix-category > .matrix-section-title {justify-content:flex-end; margin:4px 0 14px;}
+
+/* Company settings: collapsible local navigation, independent of the app header. */
+#tab-settings #company-settings-layout {display:grid; grid-template-columns:230px minmax(0,1fr); align-items:start; gap:22px;}
+.company-settings-menu.card {padding:14px; position:sticky; top:20px; min-width:0;}
+.company-menu-heading {display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:18px; font-size:13px; font-weight:700;}
+.company-menu-toggle {display:flex; align-items:center; justify-content:center; flex-shrink:0; width:32px; height:32px; border:1px solid var(--border-color); border-radius:8px; background:white; color:var(--accent-color); cursor:pointer;}
+.company-menu-toggle .ui-icon {transform:rotate(90deg); width:18px; height:18px;}
+.company-menu-toggle:focus-visible {outline:2px solid var(--accent-color); outline-offset:3px;}
+.company-settings-menu .company-toolbar {display:block; padding:0; margin-bottom:18px;}
+.company-settings-menu .company-toolbar .form-group {max-width:none;}
+.company-settings-menu .company-settings-tabs {display:flex; flex-direction:column; background:transparent; padding:0; border:0; margin:0; gap:7px;}
+.company-settings-menu .settings-tab-btn {flex:none; flex-direction:row; justify-content:flex-start; text-align:left; padding:12px 10px; width:100%;}
+.company-settings-menu .settings-tab-btn .ui-icon {flex-shrink:0; width:20px; height:20px;}
+.company-menu-label {min-width:0;}
+.company-settings-menu .settings-tab-btn.active {background:#edf2f6; box-shadow:none;}
+.company-settings-menu .company-toolbar-actions {margin-top:18px; padding-top:16px; border-top:1px solid var(--border-color);}
+.company-settings-menu .company-toolbar-actions .btn {width:100%;}
+.company-create-btn {display:inline-flex; align-items:center; gap:8px; flex-shrink:0;}
+#tab-settings .company-create-btn[hidden] {display:none !important;}
+#tab-settings #company-settings-layout.company-menu-collapsed {grid-template-columns:64px minmax(0,1fr);}
+.company-menu-collapsed .company-settings-menu.card {padding:10px;}
+.company-menu-collapsed .company-menu-heading {justify-content:center;}
+.company-menu-collapsed .company-menu-heading > span, .company-menu-collapsed .company-toolbar, .company-menu-collapsed .company-menu-label, .company-menu-collapsed .company-toolbar-actions {display:none !important;}
+.company-menu-collapsed .company-menu-toggle .ui-icon {transform:rotate(-90deg);}
+.company-menu-collapsed .settings-tab-btn {justify-content:center; padding:12px 0;}
+@media(max-width:760px) {
+  #tab-settings #company-settings-layout, #tab-settings #company-settings-layout.company-menu-collapsed {grid-template-columns:minmax(0,1fr);}
+  .company-settings-menu.card {position:static;}
+  .company-settings-menu .company-settings-tabs {display:grid; grid-template-columns:repeat(2,minmax(0,1fr));}
+  .company-menu-collapsed .company-settings-menu .company-settings-tabs {grid-template-columns:repeat(4,minmax(0,1fr));}
+  .company-menu-collapsed .company-menu-heading {justify-content:flex-end; margin-bottom:8px;}
+  #tab-settings > .tab-header {flex-wrap:wrap; gap:16px;}
+}
+
+.company-settings-menu .company-toolbar[hidden] {display:none !important;}

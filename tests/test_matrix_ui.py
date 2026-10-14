@@ -379,6 +379,32 @@ class MatrixUITests(unittest.TestCase):
                 self.assertTrue(button.evaluate('button => button.scrollWidth <= button.clientWidth+2'))
         self.assertEqual(self.errors,[])
 
+    def test_company_menu_collapses_and_preserves_company_and_section(self):
+        self.page.locator('#nav-settings').click()
+        menu = self.page.locator('.company-settings-menu')
+        self.assertEqual(menu.locator('#config-company-select').count(), 1)
+        self.assertEqual(menu.locator('.company-create-btn').count(), 0)
+        self.page.locator('#company-destination-btn').click()
+        self.assertEqual(self.page.locator('#company-destination-panel').is_visible(), True)
+        previous = self.page.locator('#config-company-select').input_value()
+        before = self.page.locator('.company-config-panels').bounding_box()['width']
+        self.page.locator('#company-menu-toggle').click()
+        self.assertEqual(self.page.locator('#company-menu-toggle').get_attribute('aria-expanded'), 'false')
+        self.assertFalse(self.page.locator('#config-company-select').is_visible())
+        self.assertGreater(self.page.locator('.company-config-panels').bounding_box()['width'], before)
+        self.page.locator('#company-matrix-btn').click()
+        self.assertTrue(self.page.locator('#company-matrix-panel').is_visible())
+        self.page.locator('#company-menu-toggle').click()
+        self.assertEqual(self.page.locator('#config-company-select').input_value(), previous)
+        self.page.locator('#company-storage-btn').click()
+        self.assertFalse(self.page.locator('#config-company-select').is_visible())
+        self.page.locator('#company-destination-btn').click()
+        for width in (1440,390):
+            self.page.set_viewport_size({'width':width,'height':1100})
+            self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            self.page.screenshot(path=f'/private/tmp/idpn-company-menu-{width}.png', full_page=True)
+        self.assertEqual(self.errors, [])
+
     def test_matrix_categories_collapse_independently_without_losing_changes(self):
         self.page.locator('#nav-settings').click()
         self.page.locator('#company-matrix-btn').click()

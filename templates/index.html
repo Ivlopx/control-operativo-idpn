@@ -269,21 +269,26 @@
             <h2>Configuración de empresas</h2>
             <p>Selecciona una empresa para configurar su sitio WordPress, estructura documental y almacenamiento.</p>
           </div>
-
+          <button type="button" class="btn btn-primary company-create-btn" {% if idpn_user and not idpn_user.admin %}hidden{% endif %} onclick="createNewConfig()"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg>Nueva empresa</button>
         </div>
 
-        <div class="settings-grid">
-          <div class="company-config-panels">
-            <div class="settings-tabs company-settings-tabs" aria-label="Configuración de la empresa">
-              <button type="button" class="settings-tab-btn active" id="company-site-btn" onclick="switchCompanySection('site')"><i class="fa-brands fa-wordpress" aria-hidden="true"></i>Sitio WordPress</button>
-              <button type="button" class="settings-tab-btn" id="company-matrix-btn" onclick="switchCompanySection('matrix')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Matriz documental</button>
-              <button type="button" class="settings-tab-btn" id="company-destination-btn" onclick="switchCompanySection('destination')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Almacenamiento</button>
-              <button type="button" class="settings-tab-btn" id="company-storage-btn" {% if idpn_user and not idpn_user.admin %}hidden{% endif %} onclick="switchCompanySection('storage')"><svg class="ui-icon storage-icon" aria-hidden="true"><use href="#icon-database"></use></svg>Credenciales de almacenamiento <span class="settings-scope">Global</span></button>
+        <div class="settings-grid" id="company-settings-layout">
+          <aside class="company-settings-menu card" aria-label="Menú de configuración">
+            <div class="company-menu-heading"><span>Configuración</span><button type="button" id="company-menu-toggle" class="company-menu-toggle" aria-label="Plegar menú de configuración" aria-expanded="true" aria-controls="company-menu-content" onclick="toggleCompanyMenu()"><svg class="ui-icon" aria-hidden="true"><use href="#icon-chevron"></use></svg></button></div>
+            <div id="company-menu-content">
+              <div class="company-toolbar" id="company-toolbar">
+                <div class="form-group"><label for="config-company-select">Empresa</label><select id="config-company-select" onchange="selectConfig(this.value)"><option value="">Selecciona una empresa...</option></select></div>
+              </div>
+              <nav class="settings-tabs company-settings-tabs" aria-label="Apartados de configuración">
+                <button type="button" class="settings-tab-btn active" id="company-site-btn" aria-label="Sitio WordPress" title="Sitio WordPress" onclick="switchCompanySection('site')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-wordpress"></use></svg><span class="company-menu-label">Sitio WordPress</span></button>
+                <button type="button" class="settings-tab-btn" id="company-matrix-btn" aria-label="Matriz documental" title="Matriz documental" onclick="switchCompanySection('matrix')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg><span class="company-menu-label">Matriz documental</span></button>
+                <button type="button" class="settings-tab-btn" id="company-destination-btn" aria-label="Almacenamiento" title="Almacenamiento" onclick="switchCompanySection('destination')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg><span class="company-menu-label">Almacenamiento</span></button>
+                <button type="button" class="settings-tab-btn" id="company-storage-btn" aria-label="Credenciales globales de almacenamiento" title="Credenciales globales de almacenamiento" {% if idpn_user and not idpn_user.admin %}hidden{% endif %} onclick="switchCompanySection('storage')"><svg class="ui-icon" aria-hidden="true"><use href="#icon-settings"></use></svg><span class="company-menu-label">Credenciales <span class="settings-scope">Global</span></span></button>
+              </nav>
+              <div class="company-toolbar-actions" id="company-delete-action" {% if idpn_user and not idpn_user.admin %}hidden{% endif %}><button type="button" class="btn btn-danger" id="config-delete-selected" onclick="deleteConfig(event, selectedConfigDomain)" disabled>Eliminar empresa</button></div>
             </div>
-        <div class="company-toolbar card" id="company-toolbar">
-          <div class="form-group"><label for="config-company-select">Empresa</label><select id="config-company-select" onchange="selectConfig(this.value)"><option value="">Selecciona una empresa...</option></select></div>
-          <div class="company-toolbar-actions" {% if idpn_user and not idpn_user.admin %}hidden{% endif %}><button type="button" class="btn btn-secondary" onclick="createNewConfig()"><svg class="ui-icon" aria-hidden="true"><use href="#icon-add"></use></svg>Nueva empresa</button><button type="button" class="btn btn-danger" id="config-delete-selected" onclick="deleteConfig(event, selectedConfigDomain)" disabled>Eliminar empresa</button></div>
-        </div>
+          </aside>
+          <div class="company-config-panels">
             <div id="company-site-panel">
           <!-- Config Details Form -->
           <div class="card" id="config-detail-card" style="display: none;">

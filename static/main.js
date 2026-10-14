@@ -201,10 +201,19 @@ function autoDetectSite(val, selectId) {
 }
 
 // Tab Navigation (Dashboard vs Settings)
+function toggleCompanyMenu() {
+  const collapsed = document.getElementById('company-settings-layout').classList.toggle('company-menu-collapsed');
+  const toggle = document.getElementById('company-menu-toggle');
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+  toggle.setAttribute('aria-label', collapsed ? 'Desplegar menú de configuración' : 'Plegar menú de configuración');
+}
+
 function switchCompanySection(section, updateHistory = true) {
   if (section === 'storage' && window.idpnUser && !window.idpnUser.admin) section = 'site';
   if (!['site','matrix','destination','storage'].includes(section)) section = 'site';
   document.getElementById('company-toolbar').hidden = section === 'storage';
+  const deleteAction = document.getElementById('company-delete-action');
+  deleteAction.hidden = section === 'storage' || !!(window.idpnUser && !window.idpnUser.admin);
   ['site', 'matrix', 'destination', 'storage'].forEach(name => {
     document.getElementById(`company-${name}-panel`).hidden = name !== section;
     document.getElementById(`company-${name}-btn`).classList.toggle('active', name === section);
