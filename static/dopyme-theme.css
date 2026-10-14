@@ -612,3 +612,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-color);
 }
 
 .company-settings-menu .company-toolbar[hidden] {display:none !important;}
+
+.company-card-heading {margin-bottom:22px;}
+.company-card-heading h2 {font-size:22px; margin:0 0 8px; line-height:1.3;}
+.company-card-heading p {margin:0; color:var(--text-secondary, #536376); font-size:14px; line-height:1.5;}
