@@ -1050,10 +1050,28 @@ function copyValueToClipboard(text, element) {
 }
 
 // Right Panel Tab Navigation (Console vs Browser View)
+let previewOrigin = null;
+let previewBackground = null;
 function togglePreviewSize(force) {
   const panel = document.getElementById('right-panel');
   const button = document.getElementById('preview-expand-btn');
   const expanded = typeof force === 'boolean' ? force : !panel.classList.contains('is-maximized');
+  if (expanded && !panel.classList.contains('is-maximized')) {
+    previewOrigin = document.createComment('preview-original-position');
+    panel.before(previewOrigin);
+    document.body.append(panel);
+    const workspace = document.querySelector('body > .container');
+    previewBackground = {workspace, inert:workspace?.inert || false, overflow:document.body.style.overflow};
+    if (workspace) workspace.inert = true;
+    document.body.style.overflow = 'hidden';
+    document.querySelectorAll('.account-menu[open]').forEach(menu => menu.open = false);
+  } else if (!expanded && panel.classList.contains('is-maximized')) {
+    if (previewOrigin?.parentNode) previewOrigin.replaceWith(panel);
+    if (previewBackground?.workspace) previewBackground.workspace.inert = previewBackground.inert;
+    document.body.style.overflow = previewBackground?.overflow || '';
+    previewOrigin = null;
+    previewBackground = null;
+  }
   panel.classList.toggle('is-maximized', expanded);
   button.setAttribute('aria-expanded', String(expanded));
   button.setAttribute('aria-label', expanded ? 'Restaurar visor' : 'Ampliar visor');

@@ -36,6 +36,17 @@ class AuthUITests(unittest.TestCase):
                     page.locator('#current_password').fill('Initial-browser-password');page.locator('#new_password').fill('Changed-browser-password');page.locator('#confirm_password').fill('Changed-browser-password');page.get_by_role('button',name='Guardar contraseña').click()
                     page.wait_for_url('**/primer-proceso')
                     self.assertTrue(page.locator('#nav-settings').is_visible())
+                    for tab in ('browser','console'):
+                        page.locator(f'#right-tab-{tab}-btn').click()
+                        chip = page.locator('.account-menu > summary').bounding_box()
+                        page.get_by_role('button',name='Ampliar visor',exact=True).click()
+                        self.assertEqual(page.locator('body > #right-panel').count(), 1)
+                        self.assertTrue(page.locator('body > .container').evaluate('element => element.inert'))
+                        self.assertTrue(page.evaluate('(point) => !!document.elementFromPoint(point.x, point.y).closest("#right-panel")', {'x':chip['x']+chip['width']/2,'y':chip['y']+chip['height']/2}))
+                        page.keyboard.press('Escape')
+                        self.assertEqual(page.locator('#right-panel-container-p1 #right-panel').count(), 1)
+                        self.assertFalse(page.locator('body > .container').evaluate('element => element.inert'))
+
                     page.screenshot(path='/private/tmp/idpn-main-header-desktop.png',full_page=True)
                     page.locator('.account-menu > summary').click()
                     page.get_by_role('link',name='Usuarios',exact=True).click()
