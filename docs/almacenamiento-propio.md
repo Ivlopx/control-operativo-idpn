@@ -33,6 +33,8 @@ Permisos para la identidad AWS: listar buckets (para el selector), listar objeto
 
 Se mantiene el límite de 15 MiB para archivos nuevos y antecedentes. Los reintentos con el mismo identificador de operación recuperan el manifiesto y su versión. Un bloqueo abandonado tras detener el proceso abruptamente requiere comprobar que no hay una operación en curso antes de recuperarlo manualmente; no se eliminan bloqueos ajenos automáticamente.
 
+Las páginas nuevas guardan la acción (`alta`, `version` o `baja`) y el tipo de recurso en atributos `data-idpn-action` y `data-idpn-resource`, sin leyendas visibles. El segundo proceso lee esa marca y verifica que siga guardada después de limpiar Cognito y el folio. Solo las bajas documentales finalizan el archivo de antecedentes; los formularios no operan sobre almacenamiento. Las páginas antiguas sin marca mantienen el comportamiento basado en el registro de baja por folio.
+
 ## Persistencia y migración
 
 Mantener `config/` en un volumen persistente. Incluye `integrations/storage.json` (credenciales, permisos 0600), `integrations/download-key` (firma de enlaces públicos) y `bajas/` (relación folio/testigo). Las claves se guardan en el servidor y no se devuelven en las respuestas de configuración. El archivo no está cifrado: proteger el acceso al volumen y sus respaldos.

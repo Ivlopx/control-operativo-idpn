@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from automation import generate_gutenberg_html, get_document_heading, remove_cognito_and_folio
+from automation import generate_gutenberg_html, get_document_heading, get_document_metadata, remove_cognito_and_folio
 
 
 def block(name, content=None, children=None, **attrs):
@@ -193,7 +193,8 @@ class CleanupTests(unittest.TestCase):
                     'download_url':'https://files.test/download', 'filename':'control-v002.pdf'})
         self.page.set_content(html)
         self.assertEqual(self.page.locator('iframe').get_attribute('src'), 'https://files.test/BAJA/control-v002.pdf')
-        self.assertIn('Registro de baja', self.page.locator('[data-idpn-component="status"]').inner_text())
+        self.assertEqual(self.page.locator('[data-idpn-action]').first.get_attribute('data-idpn-action'), 'baja')
+        self.assertEqual(self.page.locator('[data-idpn-component="status"]').count(), 0)
         self.assertIn('268123', self.page.locator('[data-idpn-component="folio"]').inner_text())
         self.assertEqual(self.page.locator('a').get_attribute('download'), 'control-v002.pdf')
 
@@ -201,7 +202,8 @@ class CleanupTests(unittest.TestCase):
         html = generate_gutenberg_html({}, {'codigo':'FG-D-CON-005','nombre':'Solicitud','folio':'268123',
                     'document_status':'baja','embed_type':'form','enlace':'https://example.test/formulario'})
         self.page.set_content(html)
-        self.assertEqual(self.page.locator('[data-idpn-component="status"]').inner_text(), 'Registro de baja del formulario')
+        self.assertEqual(self.page.locator('[data-idpn-action]').first.get_attribute('data-idpn-action'), 'baja')
+        self.assertEqual(self.page.locator('[data-idpn-component="status"]').count(), 0)
         self.assertEqual(self.page.locator('iframe').count(), 0)
         self.assertEqual(self.page.locator('figure.aligncenter .wp-block-embed__wrapper').inner_text().strip(), 'https://example.test/formulario')
         self.assertEqual(html.count('<!-- wp:embed '), 1)
@@ -229,6 +231,30 @@ class CleanupTests(unittest.TestCase):
         self.assertIn(embed, self.page.evaluate('current'))
         self.assertNotIn('data-idpn-component="folio"', self.page.evaluate('JSON.stringify(current)'))
         self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
+
+    def test_internal_actions_are_invisible_and_survive_second_process(self):
+        for resource, actions in [('document', ('alta','version','baja')), ('form', ('alta','baja'))]:
+            for action in actions:
+                html = generate_gutenberg_html({'cognito_script':'<script src="https://www.cognitoforms.com/f/seamless.js"></script>'},
+                            {'codigo':'FE-A-COM-015','nombre':'Solicitud','folio':'268202','embed_type':resource,
+                             'document_action':action,'enlace':'https://files.test/file.pdf'})
+                self.page.set_content(html)
+                self.assertNotIn('Registro de baja', self.page.locator('body').inner_text())
+                blocks = []
+                for match in re.finditer(r'<!-- wp:(html|embed)(?: (\{.*?\}))? -->(.*?)<!-- /wp:\1 -->', html, re.S):
+                    blocks.append(block('core/html', match[3]) if match[1] == 'html' else block('core/embed', **json.loads(match[2])))
+                self.setup_editor(blocks)
+                expected = {'action':action, 'resource':resource}
+                self.assertEqual(get_document_metadata(self.page), expected)
+                remove_cognito_and_folio(self.page, lambda *args: None)
+                self.assertEqual(get_document_metadata(self.page, persisted=True), expected)
+                if resource == 'form':
+                    self.assertEqual(self.page.evaluate('current.filter(block => block.name === "core/embed").length'), 1)
+
+    def test_conflicting_internal_actions_are_rejected(self):
+        self.setup_editor([block('core/html', '<section data-idpn-page="1" data-idpn-action="alta" data-idpn-resource="document"></section><section data-idpn-page="1" data-idpn-action="baja" data-idpn-resource="document"></section>')])
+        with self.assertRaisesRegex(Exception, 'contradictorias'):
+            get_document_metadata(self.page)
 
     def test_pdf_mime_type_without_filename_extension(self):
         html = generate_gutenberg_html({}, {'nombre': 'PDF', 'enlace': 'https://files.test/opaque-id', 'mime_type': 'application/pdf'})

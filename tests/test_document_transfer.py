@@ -152,7 +152,11 @@ class TransferTests(unittest.TestCase):
         ordering=[]
         def cleanup(**kwargs):
             ordering.append('wordpress_saved')
-            kwargs['after_remove']('zhipos-idpn.net','268123')
+            calls = remote.call_count
+            kwargs['after_remove']('zhipos-idpn.net','268123',page_metadata={'action':'alta','resource':'document'})
+            kwargs['after_remove']('zhipos-idpn.net','268123',page_metadata={'action':'baja','resource':'form'})
+            self.assertEqual(remote.call_count,calls)
+            kwargs['after_remove']('zhipos-idpn.net','268123',page_metadata={'action':'baja','resource':'document'})
         def finalize(metadata):
             ordering.append('storage')
             return {'success':True,'operation_id':metadata['operation_id'],'code':metadata['code'],'action':'finalizar_baja','key':metadata['reference']['key']}

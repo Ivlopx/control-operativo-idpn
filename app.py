@@ -102,7 +102,9 @@ def run_in_background(config_data, session_file, page_data):
                 if (kwargs.get('folio_status') or {}).get('status') in ('failed', 'unknown', 'error'):
                     failures.append(kwargs['folio_status'])
                 log_callback(*args, **kwargs)
-            def after_remove(domain, folio):
+            def after_remove(domain, folio, page_metadata=None):
+                if page_metadata and (page_metadata['action'] != 'baja' or page_metadata['resource'] == 'form'):
+                    return
                 with app.app_context():
                     if finalize_folio(domain, folio):
                         log_callback('Baja finalizada: antecedentes archivados y duplicados retirados; se conserva el testigo.', 'success')
@@ -169,7 +171,7 @@ def run_in_background(config_data, session_file, page_data):
                 "message": "FIN_AUTOMATIZACION",
                 "level": "done",
                 "success": success,
-                "document_action": (page_data.get('document_plan') or {}).get('action') or page_data.get('document_status'),
+                "document_action": (page_data.get('document_plan') or {}).get('action') or page_data.get('document_action') or page_data.get('document_status'),
                 "url": final_url,
                 "folio": header_text or page_data.get('folio', '')
             })
@@ -333,6 +335,7 @@ def start_automation():
             return jsonify(error='El campo Folio es obligatorio.'),400
         if page_data['embed_type'] == 'form':
             form_action = data.get('action', 'alta')
+            page_data['document_action'] = form_action
             if form_action not in ('alta', 'baja'):
                 return jsonify(error='El formulario solo admite Alta o Baja.'),400
             if not page_data['codigo'] or not page_data['nombre']:

@@ -73,6 +73,14 @@ def generate_gutenberg_html(site_config, page_data):
     nombre = clean_name(page_data.get('nombre', '').strip())
     resource_url = page_data.get('enlace', '').strip()
     resource_type = page_data.get('embed_type', 'document').strip()
+    document_action = ((page_data.get('document_plan') or {}).get('action') or page_data.get('document_action')
+                       or page_data.get('document_status') or page_data.get('action') or 'alta')
+    if document_action not in ('alta', 'version', 'baja'):
+        raise ValueError('Acción documental no válida.')
+    if resource_type not in ('form', 'document'):
+        raise ValueError('Tipo de recurso no válido.')
+    metadata = f'data-idpn-action="{document_action}" data-idpn-resource="{resource_type}"'
+
     heading = nombre if page_data.get('is_politica', False) else f"{codigo} {nombre}".strip()
 
     def checked_url(value):
@@ -107,8 +115,6 @@ def generate_gutenberg_html(site_config, page_data):
         f'<div data-idpn-component="cognito" style="margin-top:24px;">\n{cognito_script}\n</div>'
         if cognito_script else ''
     )
-    status_label = 'Registro de baja del formulario' if resource_type == 'form' else 'Registro de baja del documento'
-    status_section = f'<p data-idpn-component="status"><strong>{status_label}</strong></p>' if page_data.get('document_status') == 'baja' else ''
     if resource_type == 'form':
         # Keep core/embed outside core/html so Gutenberg and WordPress oEmbed render it.
         attributes = {'url': resource_url, 'type': 'wp-embed', 'align': 'center',
@@ -117,9 +123,8 @@ def generate_gutenberg_html(site_config, page_data):
         for literal, encoded in [('--', r'\u002d\u002d'), ('<', r'\u003c'), ('>', r'\u003e'), ('&', r'\u0026')]:
             serialized = serialized.replace(literal, encoded)
         return f'''<!-- wp:html -->
-<section data-idpn-page="1" style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
+<section data-idpn-page="1" {metadata} style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
   <h2 class="wp-block-heading" data-idpn-component="heading" style="text-align:left;">{escape(heading)}</h2>
-  {status_section}
 </section>
 <!-- /wp:html -->
 
@@ -130,7 +135,7 @@ def generate_gutenberg_html(site_config, page_data):
 <!-- /wp:embed -->
 
 <!-- wp:html -->
-<section data-idpn-page="1" style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
+<section data-idpn-page="1" {metadata} style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
   <div data-idpn-component="folio" style="margin:24px 0;text-align:left;">
     <h3 style="color:#ff0000;text-align:left;">Folio: {escape(folio)}</h3>
   </div>
@@ -138,9 +143,8 @@ def generate_gutenberg_html(site_config, page_data):
 </section>
 <!-- /wp:html -->'''
     return f'''<!-- wp:html -->
-<section data-idpn-page="1" style="box-sizing:border-box;width:100%;max-width:none;margin:0 auto;padding:0 clamp(12px,2vw,24px);text-align:left;">
+<section data-idpn-page="1" {metadata} style="box-sizing:border-box;width:100%;max-width:none;margin:0 auto;padding:0 clamp(12px,2vw,24px);text-align:left;">
   <h2 class="wp-block-heading" data-idpn-component="heading" style="text-align:left;">{escape(heading)}</h2>
-  {status_section}
   <div data-idpn-component="resource" style="width:100%;margin:0 auto 20px;">
     <iframe src="{escape(viewer_url, quote=True)}" title="{escape(title, quote=True)}" width="100%" height="800" allowfullscreen style="display:block;width:100%;height:80vh;min-height:480px;max-height:1000px;border:0;"></iframe>
   </div>
@@ -151,6 +155,42 @@ def generate_gutenberg_html(site_config, page_data):
   {cognito_section}
 </section>
 <!-- /wp:html -->'''
+
+
+def get_document_metadata(page, persisted=False):
+    """Read persisted action markers without depending on a visible status legend."""
+    return page.evaluate("""async persisted => {
+        const found = [];
+        const visit = blocks => {
+            for (const block of blocks) {
+                const html = block.attributes?.content || block.originalContent || block.innerHTML || '';
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                for (const node of doc.querySelectorAll('[data-idpn-page="1"][data-idpn-action]')) {
+                    const action = node.getAttribute('data-idpn-action');
+                    const resource = node.getAttribute('data-idpn-resource');
+                    if (!['alta','version','baja'].includes(action) || !['form','document'].includes(resource)) {
+                        throw new Error('La marca interna de la acción no es válida.');
+                    }
+                    found.push({action, resource});
+                }
+                visit(block.innerBlocks || []);
+            }
+        };
+        let blocks = wp.data.select('core/block-editor').getBlocks();
+        if (persisted) {
+            const editor = wp.data.select('core/editor');
+            const type = editor.getCurrentPostType();
+            const entity = wp.data.select('core').getEntityConfig('postType', type);
+            const record = await wp.apiFetch({path:`${entity.baseURL}/${editor.getCurrentPostId()}?context=edit`, cache:'no-store'});
+            if (typeof record.content?.raw !== 'string') throw new Error('No se pudo verificar la marca interna guardada.');
+            blocks = wp.blocks.parse(record.content.raw);
+        }
+        visit(blocks);
+        if (found.some(item => item.action !== found[0].action || item.resource !== found[0].resource)) {
+            throw new Error('La página contiene marcas de acción contradictorias.');
+        }
+        return found[0] || null;
+    }""", persisted)
 
 
 def get_document_heading(page):
@@ -1349,10 +1389,16 @@ def run_wp_remove_multiple_automation(config_dir, session_dir, folios, log_callb
                         except Exception as e:
                             log_callback(f"Advertencia al extraer encabezado: {e}. Usando folio: {folio}", "warning")
                             
+                        page_metadata = get_document_metadata(page)
+                        if page_metadata:
+                            labels = {'alta':'Alta', 'version':'Nueva versión', 'baja':'Baja'}
+                            log_callback(f"Acción de la página: {labels[page_metadata['action']]}", 'info')
                         updated_url = remove_cognito_and_folio(page, log_callback) or target_url
+                        if get_document_metadata(page, persisted=True) != page_metadata:
+                            raise RuntimeError('La marca interna de la acción cambió al limpiar la página.')
 
                         if after_remove:
-                            after_remove(domain, folio)
+                            after_remove(domain, folio, page_metadata=page_metadata)
 
                         # Report success to frontend
                         log_callback(
@@ -1362,6 +1408,7 @@ def run_wp_remove_multiple_automation(config_dir, session_dir, folios, log_callb
                                 "status": "success",
                                 "folio": folio,
                                 "header": header_text,
+                                "action": (page_metadata or {}).get('action'),
                                 "url": updated_url
                             }
                         )
