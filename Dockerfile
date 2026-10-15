@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && mkdir -p /data/config /data/sessions /data/uploads \
     && chown -R idpn:idpn /data /app
 COPY --chown=idpn:idpn *.py ./
+COPY --chown=idpn:idpn wp_cleanup.js ./
 COPY --chown=idpn:idpn templates ./templates
 COPY --chown=idpn:idpn static ./static
 USER idpn
