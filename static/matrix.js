@@ -119,6 +119,7 @@
   }
   function renderAdmin() {
     el('matrix-name').value = matrix.company;
+    el('matrix-omit-scope').checked = matrix.omit_scope_directory === true;
     el('matrix-provider').value = matrix.storage.provider;
     el('matrix-target').value = matrix.storage.target;
     el('matrix-root').value = matrix.storage.root;
@@ -391,6 +392,7 @@
   }
   function collectStorage() {
     matrix.company = el('matrix-name').value.trim();
+    matrix.omit_scope_directory = el('matrix-omit-scope').checked;
     matrix.storage = {provider: el('matrix-provider').value, target: el('matrix-target').value.trim(), root: el('matrix-root').value.trim(),
       region: el('matrix-region').value.trim(), account: matrix.storage.account || ''};
     renderStorageFields();
@@ -498,6 +500,7 @@
       detectionTimer = setTimeout(detectClassification, 450);
     });
     ['matrix-name', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
+    el('matrix-omit-scope').addEventListener('change', () => {collectStorage(); dirty = true; invalidatePlan();});
     el('matrix-list-targets').addEventListener('click', async () => {
       collectStorage();
       el('matrix-list-targets').disabled = true;

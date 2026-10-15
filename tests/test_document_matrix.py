@@ -30,6 +30,26 @@ class MatrixTests(unittest.TestCase):
         self.data = {'action': 'alta', 'scope': 'government', 'branch_id': 'control-de-no-conformes',
                      'type_id': 'procedimiento', 'number': '003', 'name': 'Control de no conformes', 'filename': 'original.PDF'}
 
+    def test_optional_legacy_layout_reuses_root_for_both_scopes_and_versions(self):
+        self.matrix['omit_scope_directory'] = True
+        self.matrix['storage']['root'] = ''
+        government = plan_document(self.matrix, self.data, [])
+        self.assertEqual(government['classification_directory'], 'controlDeNoConformes/procedimientos')
+        previous = government['classification_directory'] + '/PG-D-CNO-003-anterior-v003.pdf'
+        version = plan_document(self.matrix, {**self.data, 'action':'version'}, [{'key':previous}])
+        self.assertEqual(version['version'], 'v004')
+        self.assertEqual(version['archive_operations'][0]['destination_key'], government['classification_directory']+'/baja/PG-D-CNO-003-anterior-v003.pdf')
+        specific = {**self.data, 'scope':'specific', 'branch_id':'administracion', 'area_id':'recursos-humanos', 'type_id':'formato'}
+        planned = plan_document(self.matrix, specific, [])
+        self.assertEqual(planned['classification_directory'], 'administracion/recursosHumanos/formatos')
+        policy = plan_document(self.matrix, {**specific, 'is_politica':True, 'action':'baja'}, [])
+        self.assertTrue(policy['key'].startswith('administracion/recursosHumanos/politicas/baja/'))
+        self.matrix['storage']['root'] = 'documentos'
+        self.assertTrue(plan_document(self.matrix, self.data, [])['key'].startswith('documentos/controlDeNoConformes/'))
+        self.matrix['omit_scope_directory'] = 'false'
+        with self.assertRaises(ValueError):
+            validate_matrix(self.matrix)
+
     def test_baja_can_upload_reference_when_no_document_exists(self):
         self.data.update(action='baja')
         plan = plan_document(self.matrix, self.data, [])
@@ -223,9 +243,12 @@ class MatrixAPITests(unittest.TestCase):
     def test_company_matrices_are_isolated(self):
         other = self.client.get('/api/matrices/other.net').get_json()
         self.assertEqual(other['government'], [])
+        self.matrix['omit_scope_directory'] = True
         self.matrix['company'] = 'Empresa actualizada'
         self.assertEqual(self.client.put('/api/matrices/zhipos-idpn.net', json=self.matrix).status_code, 200)
         self.assertEqual(self.client.get('/api/matrices/other.net').get_json()['company'], 'Otra empresa')
+        self.assertTrue(self.client.get('/api/matrices/zhipos-idpn.net').get_json()['omit_scope_directory'])
+        self.assertFalse(self.client.get('/api/matrices/other.net').get_json()['omit_scope_directory'])
         self.assertEqual(self.client.get('/api/matrices/zhipos-idpn.net').get_json()['company'], 'ZHIPOS')
         (self.root / 'zhipos-idpn.net.json').write_text(json.dumps({'site_name':'Empresa renombrada en WordPress'}))
         self.assertEqual(self.client.get('/api/matrices/zhipos-idpn.net').get_json()['company'], 'Empresa renombrada en WordPress')

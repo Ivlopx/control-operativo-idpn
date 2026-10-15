@@ -379,6 +379,32 @@ class MatrixUITests(unittest.TestCase):
                 self.assertTrue(button.evaluate('button => button.scrollWidth <= button.clientWidth+2'))
         self.assertEqual(self.errors,[])
 
+    def test_legacy_directory_option_is_saved_only_for_selected_company(self):
+        self.page.locator('#nav-settings').click()
+        self.page.locator('#company-destination-btn').click()
+        self.page.locator('#matrix-provider').select_option('s3')
+        self.assertFalse(self.page.locator('#matrix-omit-scope').is_checked())
+        self.page.locator('#matrix-root').fill('')
+        self.page.locator('#matrix-omit-scope').check()
+        with self.page.expect_response(lambda response: '/api/matrices/' in response.url and response.request.method == 'PUT'):
+            self.page.locator('#destination-save').click()
+        stored = json.loads((self.root / 'matrices/zhipos-idpn.net.json').read_text())
+        self.assertTrue(stored['omit_scope_directory'])
+        self.assertEqual(stored['storage']['root'], '')
+        self.page.locator('#config-company-select').select_option('otra.net')
+        self.page.wait_for_function("document.getElementById('matrix-name').value === 'Otra empresa'")
+        self.assertFalse(self.page.locator('#matrix-omit-scope').is_checked())
+        self.page.locator('#config-company-select').select_option('zhipos-idpn.net')
+        self.page.wait_for_function("document.getElementById('matrix-omit-scope').checked")
+        self.page.reload()
+        self.page.wait_for_function("document.getElementById('matrix-omit-scope').checked")
+        self.page.locator('#matrix-omit-scope').uncheck()
+        with self.page.expect_response(lambda response: '/api/matrices/' in response.url and response.request.method == 'PUT'):
+            self.page.locator('#destination-save').click()
+        stored = json.loads((self.root / 'matrices/zhipos-idpn.net.json').read_text())
+        self.assertFalse(stored['omit_scope_directory'])
+        self.assertEqual(self.errors, [])
+
     def test_company_menu_collapses_and_preserves_company_and_section(self):
         self.page.locator('#nav-settings').click()
         menu = self.page.locator('.company-settings-menu')

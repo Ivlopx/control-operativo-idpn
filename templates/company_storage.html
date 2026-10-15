@@ -8,6 +8,7 @@
           <div class="form-group"><label id="matrix-target-label" for="matrix-target">Bucket</label><input id="matrix-target" placeholder="documentos-empresa"></div>
           <div class="form-group"><label for="matrix-root">Directorio raíz</label><input id="matrix-root" placeholder="empresa"></div>
           <div class="form-group" id="matrix-region-group"><label for="matrix-region">Región S3</label><input id="matrix-region" placeholder="us-east-1"></div>
+          <label class="permission-toggle legacy-directory-toggle" for="matrix-omit-scope"><input type="checkbox" role="switch" id="matrix-omit-scope"><span class="permission-switch" aria-hidden="true"></span><span>Omitir carpetas de Gobierno y Específicos</span></label>
           </div>
         </div>
         <button class="btn btn-secondary" type="button" id="matrix-list-targets" hidden><svg class="ui-icon" aria-hidden="true"><use href="#icon-database"></use></svg><span id="matrix-list-targets-label">Consultar destinos</span></button>

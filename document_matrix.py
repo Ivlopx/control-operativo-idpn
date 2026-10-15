@@ -35,7 +35,7 @@ def directory_name(value):
 
 
 def default_matrix(company, zhipos=False):
-    matrix = {'schema_version': 1, 'company': company,
+    matrix = {'schema_version': 1, 'company': company, 'omit_scope_directory': False,
               'storage': {'provider': '', 'target': '', 'root': directory_name(company)},
               'types': deepcopy(TYPES), 'government': [], 'specific': []}
     if zhipos:
@@ -98,7 +98,11 @@ def _abbreviation(value, prefix=False):
 def validate_matrix(payload):
     if not isinstance(payload, dict) or payload.get('schema_version') != 1:
         raise ValueError('Versión de matriz no compatible.')
+    omit_scope = payload.get('omit_scope_directory', False)
+    if type(omit_scope) is not bool:
+        raise ValueError('La opción de omitir Gobierno y Específicos debe ser booleana.')
     result = {'schema_version': 1, 'company': str(payload.get('company', '')).strip(),
+              'omit_scope_directory': omit_scope,
               'storage': _storage(payload.get('storage', {})), 'types': [], 'government': [], 'specific': []}
     if not result['company']:
         raise ValueError('El nombre de la empresa es obligatorio.')
@@ -194,7 +198,8 @@ def plan_document(matrix, data, inventory=None):
     for item in [branch] + ([area] if area else []):
         if item.get('storage'):
             storage.update(item['storage'])
-    folders = ['procedimientosDeGobierno' if scope == 'government' else 'procedimientosEspecificos', branch['directory']]
+    folders = [] if matrix['omit_scope_directory'] else ['procedimientosDeGobierno' if scope == 'government' else 'procedimientosEspecificos']
+    folders.append(branch['directory'])
     if area:
         folders.append(area['directory'])
     folders.append(doc_type['directory'])
