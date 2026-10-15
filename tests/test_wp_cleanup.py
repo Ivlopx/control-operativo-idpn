@@ -73,6 +73,35 @@ class CleanupTests(unittest.TestCase):
         self.assertTrue(result['removedFolio'])
         self.assertEqual(self.page.evaluate('current[0].innerBlocks'), [doc])
 
+    def test_manual_pages_preserve_native_embed_pdf_office_and_embedpress(self):
+        resources = [
+            block('core/embed', url='https://example.test/solicitud/', type='wp-embed', align='center'),
+            block('core/html', '<iframe src="https://files.test/document.pdf"></iframe><a href="https://files.test/document.pdf" download>Descargar</a>'),
+            block('core/html', '<iframe src="https://view.officeapps.live.com/op/embed.aspx?src=https://files.test/document.xlsx"></iframe>'),
+            block('embedpress/embedpress', url='https://files.test/document.docx')
+        ]
+        for resource in resources:
+            heading = block('core/heading', '<h2 class="wp-block-heading">FE-A-COM-015 Solicitud</h2>')
+            group = block('core/group', children=[heading, resource,
+                block('core/html', '<h3><span style="color:red">Folio: 268202</span></h3>'),
+                block('core/html', '<form class="cog-cognito cog-form"><div class="cog-body"><input name="Nombre"></div></form><script src="https://www.cognitoforms.com/f/seamless.js" data-form="818"></script>')])
+            group['originalContent'] = '<div><h3>Folio: 268202</h3><script src="https://www.cognitoforms.com/f/seamless.js"></script></div>'
+            group['isValid'] = True
+            self.setup_editor([group])
+            self.assertIsNone(get_document_metadata(self.page))
+            self.assertEqual(get_document_heading(self.page), 'FE-A-COM-015 Solicitud')
+            remove_cognito_and_folio(self.page, lambda *args: None)
+            self.assertEqual(self.page.evaluate('current[0].innerBlocks'), [heading, resource])
+            self.assertIsNone(get_document_metadata(self.page, persisted=True))
+            self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
+
+    def test_manual_cognito_plugin_blocks_and_plain_html_heading(self):
+        heading = block('core/html', '<h2 class="wp-block-heading">Documento manual</h2>')
+        self.setup_editor([heading, block('cognitoforms/form', formId='818'), block('core/paragraph', '<p>Folio: COD123</p>')])
+        self.assertEqual(get_document_heading(self.page), 'Documento manual')
+        remove_cognito_and_folio(self.page, lambda *args: None)
+        self.assertEqual(self.page.evaluate('current'), [heading])
+
     def test_mixed_html_keeps_office_iframe_and_download(self):
         html = ('<h2>Documento</h2><iframe src="https://view.officeapps.live.com/op/embed.aspx?src=file"></iframe>'
                 '<a href="https://files.test/file.xlsx">Descargar</a>'

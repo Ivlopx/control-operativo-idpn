@@ -207,6 +207,11 @@ def get_document_heading(page):
                     const text = doc.body.textContent.trim();
                     if (text) return text;
                 }
+                for (const heading of doc.querySelectorAll('h2.wp-block-heading,h2')) {
+                    if (/folio\s*:/i.test(heading.textContent)) continue;
+                    if (heading.closest('.cognito,.cognito-form,.cog-cognito,.cog-form,[data-idpn-component="cognito"]')) continue;
+                    if (heading.textContent.trim()) return heading.textContent.trim();
+                }
                 const nested = find(block.innerBlocks || []);
                 if (nested) return nested;
             }
@@ -1393,6 +1398,8 @@ def run_wp_remove_multiple_automation(config_dir, session_dir, folios, log_callb
                         if page_metadata:
                             labels = {'alta':'Alta', 'version':'Nueva versión', 'baja':'Baja'}
                             log_callback(f"Acción de la página: {labels[page_metadata['action']]}", 'info')
+                        else:
+                            log_callback('Página sin marca interna: limpieza compatible con bloques creados manualmente.', 'info')
                         updated_url = remove_cognito_and_folio(page, log_callback) or target_url
                         if get_document_metadata(page, persisted=True) != page_metadata:
                             raise RuntimeError('La marca interna de la acción cambió al limpiar la página.')

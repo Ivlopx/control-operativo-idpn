@@ -1,7 +1,7 @@
 // Runs inside the WordPress editor. Both removal workflows use this function.
 async options => {
     const verify = !!(options && options.verify);
-    const isCognito = value => /(?:cognitoforms\.com|\bcognito\s*\.\s*(?:load|embed)\s*\(|\[cognito(?:forms)?\b|data-idpn-component\s*=\s*["']cognito["']|class\s*=\s*["'][^"']*\bcognito(?:-form)?\b)/i.test(value);
+    const isCognito = value => /(?:cognitoforms\.com|\bcog-(?:cognito|form)\b|\bcognito\s*\.\s*(?:load|embed)\s*\(|\[cognito(?:forms)?\b|data-idpn-component\s*=\s*["']cognito["']|class\s*=\s*["'][^"']*\bcognito(?:-form)?\b)/i.test(value);
     const isFolio = value => /(?:\bfolio\s*:|data-idpn-component\s*=\s*["']folio["'])/i.test(value);
     const stats = { removedCognito: false, removedFolio: false, cognitoCount: 0, folioCount: 0 };
     const countBlocks = blocks => blocks.reduce((n, b) => n + 1 + countBlocks(b.innerBlocks || []), 0);
@@ -9,17 +9,9 @@ async options => {
         stats[kind === 'cognito' ? 'removedCognito' : 'removedFolio'] = true;
         stats[kind === 'cognito' ? 'cognitoCount' : 'folioCount']++;
     };
-    const cleanHTML = html => {
-        const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
-        const root = doc.body;
-        // Our page contract is independent of text, order, and the embed provider.
-        for (const node of root.querySelectorAll('[data-idpn-page="1"] [data-idpn-component="cognito"], [data-idpn-page="1"] [data-idpn-component="folio"]')) {
-            if (!root.contains(node)) continue;
-            mark(node.getAttribute('data-idpn-component'));
-            node.remove();
-        }
+    const cleanManualHTML = (root, doc) => {
         // Cognito can be a script, iframe, or its own wrapper. Never remove all iframes.
-        for (const node of root.querySelectorAll('script, iframe, .cognito, .cognito-form, [data-idpn-component="cognito"]')) {
+        for (const node of root.querySelectorAll('script, iframe, .cognito, .cognito-form, .cog-cognito, .cog-form, [data-idpn-component="cognito"]')) {
             if (!root.contains(node)) continue;
             if (node.closest('[data-idpn-page="1"]')) continue;
             if (isCognito(node.outerHTML)) {
@@ -49,6 +41,17 @@ async options => {
         if (isCognito(legacy.innerHTML) || isFolio(legacy.textContent)) {
             throw new Error('Contenido Cognito/folio no reconocido: se necesita revisar este bloque antes de modificarlo.');
         }
+    };
+    const cleanHTML = html => {
+        const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+        const root = doc.body;
+        // Our page contract is independent of text, order, and the embed provider.
+        for (const node of root.querySelectorAll('[data-idpn-page="1"] [data-idpn-component="cognito"], [data-idpn-page="1"] [data-idpn-component="folio"]')) {
+            if (!root.contains(node)) continue;
+            mark(node.getAttribute('data-idpn-component'));
+            node.remove();
+        }
+        cleanManualHTML(root, doc);
         return root.innerHTML;
     };
     const cleanBlocks = blocks => blocks.flatMap(block => {
@@ -62,8 +65,13 @@ async options => {
         }
         // Inspect this block's own data, so a group is not deleted with its document.
         const strings = value => typeof value === 'string' ? [value] : value && typeof value === 'object' ? Object.values(value).flatMap(strings) : [];
-        const own = strings([block.name, block.attributes, block.originalContent, block.innerHTML]).join('\n');
-        const cognito = isCognito(own);
+        // Valid containers serialize their children separately; inspect each child once.
+        const serialized = strings([block.originalContent, block.innerHTML]).join('\n');
+        if (children.length && block.isValid === false && (isCognito(serialized) || isFolio(serialized))) {
+            throw new Error('El contenedor tiene HTML inválido. Revisa ese bloque antes de retirar Cognito y folio.');
+        }
+        const own = strings([block.name, block.attributes, ...(children.length ? [] : [serialized])]).join('\n');
+        const cognito = isCognito(own) || /(?:^|\/)(?:cognito[-_]?forms?|cog-form)(?:\/|$)/i.test(block.name);
         const folio = isFolio(own);
         if (cognito || folio) {
             const content = block.attributes && block.attributes.content;
