@@ -74,8 +74,10 @@ async options => {
         const cognito = isCognito(own) || /(?:^|\/)(?:cognito[-_]?forms?|cog-form)(?:\/|$)/i.test(block.name);
         const folio = isFolio(own);
         if (cognito || folio) {
-            const content = block.attributes && block.attributes.content;
-            if (['core/html', 'core/freeform'].includes(block.name) && typeof content === 'string') {
+            const htmlBlock = ['core/html', 'core/freeform'].includes(block.name);
+            const sources = [block.attributes?.content, block.originalContent, block.innerHTML];
+            const content = htmlBlock ? sources.find(value => typeof value === 'string' && value.trim()) : null;
+            if (htmlBlock && typeof content === 'string') {
                 const cleaned = cleanHTML(content);
                 if (!cleaned.replace(/<!--[^]*?-->/g, '').trim()) return [];
                 return [{ ...block, originalContent: cleaned, innerHTML: cleaned,

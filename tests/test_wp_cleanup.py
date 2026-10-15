@@ -117,6 +117,28 @@ class CleanupTests(unittest.TestCase):
         self.assertNotIn('cognito', content)
         self.assertNotIn('Folio:', content)
 
+    def test_legacy_html_sources_preserve_document_and_native_embed(self):
+        html = ('<h2>Documento manual</h2><iframe src="https://files.test/file.pdf"></iframe>'
+                '<a href="https://files.test/file.pdf" download>Descargar</a>'
+                '<figure class="wp-block-embed aligncenter"><div class="wp-block-embed__wrapper">https://example.test/formulario/</div></figure>'
+                '<h3><span>Folio: COD123</span></h3><script src="https://www.cognitoforms.com/f/seamless.js"></script>')
+        for source in ('originalContent','innerHTML'):
+            for content in (None, ''):
+                old = block('core/html', content)
+                old[source] = html
+                old['isValid'] = False
+                self.setup_editor([old])
+                self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
+                cleaned = self.page.evaluate('current[0].attributes.content')
+                self.page.set_content(cleaned)
+                self.assertEqual(self.page.locator('iframe').get_attribute('src'), 'https://files.test/file.pdf')
+                self.assertEqual(self.page.locator('a[download]').count(), 1)
+                self.assertEqual(self.page.locator('figure.aligncenter').count(), 1)
+                self.assertIn('Documento manual', self.page.locator('h2').inner_text())
+                self.assertNotIn('Cognito', cleaned)
+                self.assertNotIn('cognitoforms.com', cleaned)
+                self.assertNotIn('Folio:', cleaned)
+
     def test_script_only_and_legacy_freeform(self):
         self.setup_editor([
             block('core/html', '<script src="https://www.cognitoforms.com/f/seamless.js"></script>'),
