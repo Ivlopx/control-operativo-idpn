@@ -136,7 +136,7 @@ def generate_gutenberg_html(site_config, page_data):
 
 <!-- wp:html -->
 <section data-idpn-page="1" {metadata} style="box-sizing:border-box;width:100%;padding:0 clamp(12px,2vw,24px);text-align:left;">
-  <div data-idpn-component="folio" style="margin:0;text-align:left;">
+  <div data-idpn-component="folio" style="margin:0 0 24px;text-align:left;">
     <h3 style="margin:0;color:#ff0000;text-align:left;">Folio: {escape(folio)}</h3>
   </div>
   {cognito_section}
@@ -149,7 +149,7 @@ def generate_gutenberg_html(site_config, page_data):
     <iframe src="{escape(viewer_url, quote=True)}" title="{escape(title, quote=True)}" width="100%" height="800" allowfullscreen style="display:block;width:100%;height:80vh;min-height:480px;max-height:1000px;border:0;"></iframe>
   </div>
   <div data-idpn-component="download" style="margin:0;text-align:center;">{action}</div>
-  <div data-idpn-component="folio" style="margin:0;text-align:left;">
+  <div data-idpn-component="folio" style="margin:0 0 24px;text-align:left;">
     <h3 style="margin:0;color:#ff0000;text-align:left;">Folio: {escape(folio)}</h3>
   </div>
   {cognito_section}
