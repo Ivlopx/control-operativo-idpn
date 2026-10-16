@@ -48,6 +48,17 @@ class TransferTests(unittest.TestCase):
                 'classification':json.dumps(self.classification),'operation_id':'operation-1234567890',
                 'file':(io.BytesIO(b'%PDF-1.4 test'),'original.pdf')}
 
+    def test_primary_process_accepts_manual_without_branch_area_or_type(self):
+        payload = self.payload()
+        payload.update(codigo='MG-003', nombre='Manual del sistema', classification=json.dumps({'scope':'manuals','action':'alta'}))
+        with patch('app.threading.Thread') as thread:
+            response = self.client.post('/api/run', data=payload, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 200, response.get_json())
+        page_data = thread.call_args.kwargs['args'][2]
+        self.assertEqual(page_data['document_plan']['classification_directory'], 'zhipos/manualesDelSistemaDeGestion')
+        self.assertEqual(page_data['document_plan']['type_id'], 'manual')
+        self.assertEqual(page_data['codigo'], 'MG-003')
+
     def test_primary_process_preserves_user_code_and_saves_file_temporarily(self):
         with patch('app.threading.Thread') as thread:
             response = self.client.post('/api/run',data=self.payload(),content_type='multipart/form-data')

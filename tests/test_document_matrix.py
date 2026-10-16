@@ -50,6 +50,42 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_matrix(self.matrix)
 
+    def test_manuals_go_directly_to_their_folder_regardless_of_legacy_layout(self):
+        data = {'scope':'manuals','code':'mg-003','name':'Manual del Sistema','filename':'manual.pdf','action':'alta'}
+        for omit in (False, True):
+            self.matrix['omit_scope_directory'] = omit
+            planned = plan_document(self.matrix, data, [])
+            self.assertEqual(planned['classification_directory'], 'zhipos/manualesDelSistemaDeGestion')
+            self.assertEqual(planned['type_id'], 'manual')
+            self.assertIsNone(planned['branch_id'])
+            self.assertEqual(planned['code'], 'MG-003')
+            self.assertEqual(planned['version'], 'v001')
+            next_version = plan_document(self.matrix, {**data, 'action':'version'}, [{'key':planned['key']}])
+            self.assertEqual(next_version['version'], 'v002')
+            baja = plan_document(self.matrix, {**data,'action':'baja'}, [])
+            self.assertIn('/manualesDelSistemaDeGestion/baja/', baja['key'])
+        self.matrix['storage']['root'] = ''
+        self.assertEqual(plan_document(self.matrix, data, [])['classification_directory'], 'manualesDelSistemaDeGestion')
+        self.assertEqual(plan_document(self.matrix, {**data,'code':'OTRO-009'}, [])['code'], 'OTRO-009')
+
+    def test_manual_code_detection_uses_the_company_prefix(self):
+        result = resolve_document_code(self.matrix,'mg-003')
+        self.assertEqual(result[0]['scope'], 'manuals')
+        self.assertEqual(result[0]['type_id'], 'manual')
+        self.assertEqual(result[0]['number'], '003')
+        self.matrix['manual_directory'] = 'Manuales Corporativos'
+        self.matrix['omit_scope_directory'] = True
+        planned = plan_document(self.matrix, {'scope':'manuals','code':'MG-001','name':'Manual','filename':'file.pdf'}, [])
+        self.assertEqual(planned['classification_directory'], 'zhipos/manualesCorporativos')
+        self.matrix['manual_directory'] = '../invalid'
+        with self.assertRaises(ValueError):
+            validate_matrix(self.matrix)
+        self.matrix['manual_directory'] = 'manualesDelSistemaDeGestion'
+        self.matrix['manual_prefix'] = 'MSG'
+        self.assertEqual(resolve_document_code(self.matrix,'MSG-001')[0]['scope'], 'manuals')
+        with self.assertRaises(ValueError):
+            resolve_document_code(self.matrix,'MG-001')
+
     def test_baja_can_upload_reference_when_no_document_exists(self):
         self.data.update(action='baja')
         plan = plan_document(self.matrix, self.data, [])

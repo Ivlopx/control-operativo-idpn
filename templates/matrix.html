@@ -2,7 +2,7 @@
   <div id="matrix-alert" role="status" class="matrix-message" hidden></div>
   <div class="matrix-layout" id="matrix-workspace" hidden>
     <div class="card matrix-admin">
-      <div class="company-card-heading"><h2>Matriz documental</h2><p>Administra procedimientos, procesos, áreas y siglas de la empresa seleccionada.</p></div>
+      <div class="company-card-heading"><h2>Matriz documental</h2><p>Administra procedimientos, procesos, áreas, manuales y siglas de la empresa seleccionada.</p></div>
       <form id="matrix-admin-form">
         <input id="matrix-name" type="hidden">
         <details class="matrix-section">
@@ -20,6 +20,7 @@
           <div class="matrix-section-title"><button id="matrix-add-process" type="button" class="btn btn-secondary">Agregar proceso</button></div>
           <div id="matrix-specific" class="matrix-tree"></div>
         </details>
+        <details class="matrix-section" id="matrix-manuals-settings"><summary>Manuales del Sistema de Gestión</summary><div class="matrix-fields"><div class="form-group"><label for="matrix-manual-prefix">Prefijo de manuales</label><input id="matrix-manual-prefix" maxlength="100" placeholder="MG" required></div><div class="form-group"><label for="matrix-manual-directory">Directorio de manuales</label><input id="matrix-manual-directory" placeholder="manualesDelSistemaDeGestion" required></div></div></details>
         <button class="btn btn-primary" type="submit" id="matrix-save">Guardar matriz de esta empresa</button>
       </form>
     </div>

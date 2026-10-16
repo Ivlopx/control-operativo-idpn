@@ -119,6 +119,8 @@
   }
   function renderAdmin() {
     el('matrix-name').value = matrix.company;
+    el('matrix-manual-prefix').value = matrix.manual_prefix || 'MG';
+    el('matrix-manual-directory').value = matrix.manual_directory || 'manualesDelSistemaDeGestion';
     el('matrix-omit-scope').checked = matrix.omit_scope_directory === true;
     el('matrix-provider').value = matrix.storage.provider;
     el('matrix-target').value = matrix.storage.target;
@@ -194,8 +196,12 @@
     });
     if (items.some(item => item.id === selected)) select.value = selected;
   }
+  function isManuals() { return el('matrix-scope').value === 'manuals'; }
   function renderChoices() {
     const scope = el('matrix-scope').value;
+    el('matrix-branch').closest('.form-group').hidden = isManuals();
+    el('matrix-branch').required = !isManuals();
+    el('matrix-branch').disabled = isManuals();
     el('matrix-area-field').hidden = scope !== 'specific';
     el('matrix-area').required = scope === 'specific';
     el('matrix-branch-label').textContent = scope === 'specific' ? 'Procedimiento específico / proceso' : 'Procedimiento de Gobierno';
@@ -205,8 +211,8 @@
       refreshAction();
       return;
     }
-    options(el('matrix-branch'), operationMatrix[scope], el('matrix-branch').value);
-    options(el('matrix-type'), operationMatrix.types.filter(type => type.store_file), el('matrix-type').value);
+    options(el('matrix-branch'), operationMatrix[scope] || [], el('matrix-branch').value);
+    options(el('matrix-type'), isManuals() ? [{id:'manual',name:'Manual del Sistema de Gestión'}] : operationMatrix.types.filter(type => type.store_file), isManuals() ? 'manual' : el('matrix-type').value);
     const process = operationMatrix.specific.find(item => item.id === el('matrix-branch').value);
     options(el('matrix-area'), process ? process.areas : [], el('matrix-area').value);
     refreshAction();
@@ -222,23 +228,24 @@
     if (isForm && el('matrix-action').value === 'version') el('matrix-action').value = 'alta';
     el('matrix-action').disabled = false;
     el('document-action-label').textContent = isForm ? 'Acción del formulario' : 'Acción documental';
+    if (isManuals()) el('input-is-politica-p1').checked = false;
     const policy = isPolicy();
     el('campo-codigo-p1').hidden = policy;
     el('input-codigo-p1').required = !policy;
     el('matrix-detect-code').hidden = isForm || policy;
-    el('matrix-type').closest('.form-group').hidden = policy;
-    el('matrix-type').required = !policy;
-    el('matrix-type').disabled = policy;
+    el('matrix-type').closest('.form-group').hidden = policy || isManuals();
+    el('matrix-type').required = !policy && !isManuals();
+    el('matrix-type').disabled = policy || isManuals();
     if (policy) {
       el('classification-fields').hidden = false;
       el('classification-fields').disabled = false;
       el('classification-summary').textContent = '';
     } else if (!manualClassification) {
       el('classification-fields').hidden = true;
-      el('classification-fields').disabled = !el('matrix-branch').value;
+      el('classification-fields').disabled = !el('matrix-branch').value && !isManuals();
     }
-    document.querySelector('label[for="input-codigo-p1"]').textContent = isForm ? 'Código del formulario' : 'Código del documento';
-    document.querySelector('label[for="input-nombre-p1"]').textContent = isForm ? 'Nombre del formulario' : policy ? 'Nombre de la política' : 'Nombre del documento';
+    document.querySelector('label[for="input-codigo-p1"]').textContent = isForm ? 'Código del formulario' : isManuals() ? 'Código del manual' : 'Código del documento';
+    document.querySelector('label[for="input-nombre-p1"]').textContent = isForm ? 'Nombre del formulario' : isManuals() ? 'Nombre del manual' : policy ? 'Nombre de la política' : 'Nombre del documento';
     el('document-routing').hidden = isForm;
     el('classification-summary').hidden = isForm || policy;
     if (isForm) {
@@ -263,7 +270,7 @@
     el('input-enlace-p1').required = isForm;
     el('input-folio-p1').required = true;
     el('input-folio-p1').closest('.form-group').hidden = false;
-    el('campo-politica-p1').hidden = isForm;
+    el('campo-politica-p1').hidden = isForm || isManuals();
     const resource = document.querySelector(`input[name="input-embed-type-p1"][value="${isForm ? 'form' : 'document'}"]`);
     if (resource && !resource.checked) {resource.checked = true; resource.dispatchEvent(new Event('change', {bubbles:true}));}
     el('submit-btn-p1').textContent = isForm ? (baja ? 'Publicar registro de baja del formulario' : 'Crear y publicar formulario') : baja ? 'Dar de baja y publicar registro' : 'Subir y publicar documento';
@@ -275,8 +282,8 @@
     if (isPolicy()) show = true;
     manualClassification = show;
     el('classification-fields').hidden = !show;
-    el('classification-fields').disabled = !show && !el('matrix-branch').value;
-    el('matrix-detect-code').querySelector('span').textContent = el('matrix-branch').value ? 'Modificar clasificación' : 'Clasificar manualmente';
+    el('classification-fields').disabled = !show && !el('matrix-branch').value && !isManuals();
+    el('matrix-detect-code').querySelector('span').textContent = (el('matrix-branch').value || isManuals()) ? 'Modificar clasificación' : 'Clasificar manualmente';
   }
   async function detectClassification() {
     if (isPolicy() || isWebForm() || !operationMatrix || manualClassification) return;
@@ -299,13 +306,14 @@
       el('matrix-number').value = match.number;
       el('matrix-type').value = match.type_id;
       refreshAction(); showClassificationFields(false);
-      const branch = operationMatrix[match.scope].find(item => item.id === match.branch_id);
+      const branch = (operationMatrix[match.scope] || []).find(item => item.id === match.branch_id);
       const area = match.area_id ? branch.areas.find(item => item.id === match.area_id) : null;
-      el('classification-summary').textContent = [match.scope === 'government' ? 'Gobierno' : 'Específicos',branch.name,...(area ? [area.name] : []),match.type_name].join(' → ');
+      el('classification-summary').textContent = match.scope === 'manuals' ? 'Manuales del Sistema de Gestión' : [match.scope === 'government' ? 'Gobierno' : 'Específicos',branch.name,...(area ? [area.name] : []),match.type_name].join(' → ');
+      message('matrix-plan-error', '');
       invalidatePlan();
     } catch(error) {
       if (revision !== detectionRevision || manualClassification) return;
-      options(el('matrix-branch'), operationMatrix[el('matrix-scope').value], '');
+      options(el('matrix-branch'), operationMatrix[el('matrix-scope').value] || [], '');
       el('matrix-type').value = '';el('matrix-number').value = '';
       showClassificationFields(true); refreshAction();invalidatePlan();
       el('classification-summary').textContent = error.message + ' Puedes clasificar el documento manualmente.';
@@ -321,19 +329,19 @@
       const data = await api(`/api/matrices/${encodeURIComponent(selected)}`);
       if (request !== operationLoad) return;
       operationMatrix = data; renderChoices(); invalidatePlan(); detectClassification();
-      if (!isWebForm() && !data.government.length && !data.specific.length) message('matrix-plan-error', 'Configura los procedimientos y procesos de esta empresa en Matriz documental.', true);
+
     } catch(error) {if (request === operationLoad) message('matrix-plan-error', error.message, true);}
   }
   function operationMetadata() {
     if (!operationMatrix || operationDomain !== el('site-select-p1').value) throw new Error('Selecciona una empresa y espera que cargue su matriz.');
     return {site:operationDomain,action:el('matrix-action').value,scope:el('matrix-scope').value,
-      branch_id:el('matrix-branch').value,area_id:el('matrix-area').value,type_id:isPolicy() ? 'politica' : el('matrix-type').value,is_politica:isPolicy(),
+      branch_id:el('matrix-branch').value,area_id:el('matrix-area').value,type_id:isManuals() ? 'manual' : isPolicy() ? 'politica' : el('matrix-type').value,is_politica:isPolicy(),
       code:isPolicy() ? '' : el('input-codigo-p1').value.trim(),number:el('matrix-number').value.trim(),name:el('matrix-document-name').value.trim(),filename:el('matrix-file').files[0]?.name || ''};
   }
   async function updatePreview() {
     if (isWebForm() || !operationMatrix) return;
     const data = operationMetadata();
-    if (!data.branch_id || !data.type_id || (!data.is_politica && !data.code) || (data.scope === 'specific' && !data.area_id)) return;
+    if ((data.scope !== 'manuals' && !data.branch_id) || !data.type_id || (!data.is_politica && !data.code) || (data.scope === 'specific' && !data.area_id)) return;
     if (data.type_id !== 'formulario' && (!data.name || !data.filename)) {
       return;
     }
@@ -347,7 +355,7 @@
   window.documentOperation = {
     metadata: () => {
       const data = operationMetadata();
-      if (!data.branch_id || !data.type_id || (!data.is_politica && !data.code) || (data.scope === 'specific' && !data.area_id)) {
+      if ((data.scope !== 'manuals' && !data.branch_id) || !data.type_id || (!data.is_politica && !data.code) || (data.scope === 'specific' && !data.area_id)) {
         showClassificationFields(true);
         throw new Error('Completa la clasificación del documento antes de continuar.');
       }
@@ -392,6 +400,8 @@
   }
   function collectStorage() {
     matrix.company = el('matrix-name').value.trim();
+    matrix.manual_prefix = el('matrix-manual-prefix').value.trim().toUpperCase();
+    matrix.manual_directory = el('matrix-manual-directory').value.trim();
     matrix.omit_scope_directory = el('matrix-omit-scope').checked;
     matrix.storage = {provider: el('matrix-provider').value, target: el('matrix-target').value.trim(), root: el('matrix-root').value.trim(),
       region: el('matrix-region').value.trim(), account: matrix.storage.account || ''};
@@ -499,7 +509,7 @@
       el('classification-fields').disabled = true;
       detectionTimer = setTimeout(detectClassification, 450);
     });
-    ['matrix-name', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
+    ['matrix-name', 'matrix-manual-prefix', 'matrix-manual-directory', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
     el('matrix-omit-scope').addEventListener('change', () => {collectStorage(); dirty = true; invalidatePlan();});
     el('matrix-list-targets').addEventListener('click', async () => {
       collectStorage();

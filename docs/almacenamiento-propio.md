@@ -24,6 +24,14 @@ La ruta antigua de descarga firmada se mantiene para enlaces que ya se hubieran 
 
 Permisos para la identidad AWS: listar buckets (para el selector), listar objetos del destino, leer, escribir y eliminar objetos. Azure Shared Key debe tener permitido el acceso a la cuenta. La aplicación guarda manifiestos y bloqueos dentro del destino; estos también requieren lectura y escritura.
 
+## Manuales del Sistema de Gestión
+
+Es una tercera clasificación junto a Gobierno y Específicos. Sus archivos se guardan directamente en `manualesDelSistemaDeGestion` dentro del directorio raíz configurado, sin proceso, área ni tipo intermedios. El interruptor de omitir Gobierno y Específicos nunca omite esta carpeta.
+
+En **Matriz documental → Manuales del Sistema de Gestión** se pueden editar por empresa el prefijo (inicialmente `MG`) y el directorio. El directorio se normaliza a lowerCamelCase. Los códigos `MG-001`, `MG-002`, etc. se detectan automáticamente, conservando el código capturado por el usuario. Los manuales admiten alta, nueva versión automática y baja en dos procesos, con los mismos controles de integridad y conservación del testigo.
+
+Cambiar el directorio configura dónde buscar y guardar los archivos; no mueve objetos existentes. Las bajas ya registradas conservan su destino original.
+
 ## Operaciones
 
 - Alta: primera versión `v001`; rechaza un documento que ya exista.

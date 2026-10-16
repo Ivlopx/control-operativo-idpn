@@ -35,7 +35,7 @@ def directory_name(value):
 
 
 def default_matrix(company, zhipos=False):
-    matrix = {'schema_version': 1, 'company': company, 'omit_scope_directory': False,
+    matrix = {'schema_version': 1, 'company': company, 'omit_scope_directory': False, 'manual_prefix': 'MG', 'manual_directory': 'manualesDelSistemaDeGestion',
               'storage': {'provider': '', 'target': '', 'root': directory_name(company)},
               'types': deepcopy(TYPES), 'government': [], 'specific': []}
     if zhipos:
@@ -103,7 +103,11 @@ def validate_matrix(payload):
         raise ValueError('La opción de omitir Gobierno y Específicos debe ser booleana.')
     result = {'schema_version': 1, 'company': str(payload.get('company', '')).strip(),
               'omit_scope_directory': omit_scope,
+              'manual_prefix': _abbreviation(payload.get('manual_prefix', 'MG'), prefix=True),
+              'manual_directory': _segment(payload.get('manual_directory') or 'Manuales del Sistema de Gestión'),
               'storage': _storage(payload.get('storage', {})), 'types': [], 'government': [], 'specific': []}
+    if not result['manual_prefix']:
+        raise ValueError('El prefijo de manuales es obligatorio.')
     if not result['company']:
         raise ValueError('El nombre de la empresa es obligatorio.')
     types = payload.get('types', [])
@@ -161,8 +165,8 @@ def plan_document(matrix, data, inventory=None):
     if action not in ('alta', 'version', 'baja'):
         raise ValueError('Acción documental inválida.')
     scope = data.get('scope')
-    if scope not in ('government', 'specific'):
-        raise ValueError('Selecciona Gobierno o Específicos.')
+    if scope not in ('government', 'specific', 'manuals'):
+        raise ValueError('Selecciona Gobierno, Específicos o Manuales del Sistema de Gestión.')
 
     def selected(items, key, label):
         item = next((item for item in items if item['id'] == data.get(key)), None)
@@ -171,11 +175,14 @@ def plan_document(matrix, data, inventory=None):
         return item
 
     policy = data.get('is_politica') is True
+    if scope == 'manuals' and policy:
+        raise ValueError('Los manuales se registran como documentos, sin la opción de política.')
     policy_name = str(data.get('name', '')).strip()
     if policy and not policy_name:
         raise ValueError('El nombre de la política es obligatorio para identificar sus versiones.')
-    doc_type = {'id':'politica', 'directory':'politicas', 'store_file':True} if policy else selected(matrix['types'], 'type_id', 'el tipo de documento')
-    branch = selected(matrix[scope], 'branch_id', 'el procedimiento o proceso')
+    doc_type = ({'id':'manual', 'store_file':True} if scope == 'manuals' else
+                {'id':'politica', 'directory':'politicas', 'store_file':True} if policy else selected(matrix['types'], 'type_id', 'el tipo de documento'))
+    branch = {'id':None, 'abbreviation':''} if scope == 'manuals' else selected(matrix[scope], 'branch_id', 'el procedimiento o proceso')
     area = selected(branch['areas'], 'area_id', 'el área') if scope == 'specific' else None
     supplied_code = str(data.get('code', '')).strip().upper()
     if policy:
@@ -186,23 +193,26 @@ def plan_document(matrix, data, inventory=None):
         code = supplied_code
     else:
         # Compatibility for existing integrations; the primary UI always supplies its user-entered code.
-        for item in [branch] + ([area] if area else []):
+        for item in ([] if scope == 'manuals' else [branch] + ([area] if area else [])):
             if not item['abbreviation']:
                 raise ValueError(f'El administrador debe asignar siglas a «{item["name"]}».')
         number = str(data.get('number', '')).strip()
         if not re.fullmatch(r'[0-9]{1,10}', number):
             raise ValueError('El número de documento debe contener de 1 a 10 dígitos. Se conservan los ceros iniciales.')
-        code = '-'.join([doc_type['government_prefix' if scope == 'government' else 'specific_prefix'],
+        code = (matrix['manual_prefix'] + '-' + number) if scope == 'manuals' else '-'.join([doc_type['government_prefix' if scope == 'government' else 'specific_prefix'],
                          branch['abbreviation']] + ([area['abbreviation']] if area else []) + [number])
     storage = deepcopy(matrix['storage'])
     for item in [branch] + ([area] if area else []):
         if item.get('storage'):
             storage.update(item['storage'])
-    folders = [] if matrix['omit_scope_directory'] else ['procedimientosDeGobierno' if scope == 'government' else 'procedimientosEspecificos']
-    folders.append(branch['directory'])
-    if area:
-        folders.append(area['directory'])
-    folders.append(doc_type['directory'])
+    if scope == 'manuals':
+        folders = [matrix['manual_directory']]
+    else:
+        folders = [] if matrix['omit_scope_directory'] else ['procedimientosDeGobierno' if scope == 'government' else 'procedimientosEspecificos']
+        folders.append(branch['directory'])
+        if area:
+            folders.append(area['directory'])
+        folders.append(doc_type['directory'])
     directory = '/'.join(([storage['root']] if storage['root'] else []) + folders)
     result = {'company': matrix['company'], 'action': action, 'scope': scope,
               'type_id': doc_type['id'], 'branch_id': branch['id'], 'area_id': area['id'] if area else None,
@@ -283,6 +293,10 @@ def resolve_document_code(matrix, code, type_id=None):
     if not code or len(code) > 160:
         raise ValueError('Introduce un código de documento válido.')
     matches = []
+    manual = re.fullmatch(re.escape(matrix['manual_prefix']) + r'-([0-9]{1,10})', code)
+    if manual and (not type_id or type_id == 'manual'):
+        matches.append({'scope':'manuals','branch_id':None,'area_id':None,'type_id':'manual',
+                        'type_name':'Manual del Sistema de Gestión','number':manual.group(1), 'code':code,'store_file':True})
     for scope in ('government', 'specific'):
         for branch in matrix[scope]:
             if not branch['abbreviation']:

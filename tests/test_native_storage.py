@@ -94,6 +94,21 @@ class NativeLifecycleTests(unittest.TestCase):
         self.assertEqual(len(self.active_keys()), 1)
         self.assertEqual(first['download_url'], first['url'])
 
+    def test_manual_lifecycle_keeps_the_direct_manuals_directory(self):
+        self.meta.update(code='MG-001', type_id='manual', directory='company/manualesDelSistemaDeGestion')
+        first = self.run_op()
+        self.file.write_bytes(b'new-manual')
+        current = self.run_op(action='version', operation_id='operation-2234567890')
+        self.assertEqual(current['version'], 'v002')
+        witness = self.run_op(action='baja', defer_archive=True, operation_id='operation-3234567890')
+        self.assertIn(current['key'], self.cloud.objects)
+        reference = {key:witness[key] for key in ['key','sha256','size','version']}
+        result = execute_storage({**self.meta, 'action':'finalizar_baja','operation_id':'final-operation-manual123','reference':reference}, provider=self.cloud)
+        self.assertEqual(self.active_keys(), [])
+        self.assertIn(current['archived'][0]['key'], self.cloud.objects)
+        self.assertEqual(result['key'], witness['key'])
+        self.assertIn('/manualesDelSistemaDeGestion/baja/', witness['key'])
+
     def test_version_moves_original_only_after_verified_upload(self):
         first = self.run_op(); self.file.write_bytes(b'new')
         second = self.run_op(action='version', operation_id='operation-2234567890')
