@@ -86,6 +86,19 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_document_code(self.matrix,'MG-001')
 
+    def test_main_directories_are_configurable_and_omit_switch_still_applies(self):
+        self.matrix.update(government_directory='Gobierno Corporativo', specific_directory='Procesos de Empresa')
+        planned = plan_document(self.matrix, self.data, [])
+        self.assertEqual(planned['classification_directory'], 'zhipos/gobiernoCorporativo/controlDeNoConformes/procedimientos')
+        specific = {**self.data, 'scope':'specific','branch_id':'administracion','area_id':'recursos-humanos','type_id':'formato'}
+        self.assertEqual(plan_document(self.matrix,specific,[])['classification_directory'], 'zhipos/procesosDeEmpresa/administracion/recursosHumanos/formatos')
+        self.matrix['omit_scope_directory'] = True
+        self.assertEqual(plan_document(self.matrix,specific,[])['classification_directory'], 'zhipos/administracion/recursosHumanos/formatos')
+        self.assertTrue(plan_document(self.matrix,self.data,[])['classification_directory'].startswith('zhipos/controlDeNoConformes/'))
+        self.matrix['government_directory'] = '../escape'
+        with self.assertRaises(ValueError):
+            validate_matrix(self.matrix)
+
     def test_baja_can_upload_reference_when_no_document_exists(self):
         self.data.update(action='baja')
         plan = plan_document(self.matrix, self.data, [])

@@ -8,18 +8,27 @@ from urllib.parse import quote, unquote, urlparse
 from playwright.sync_api import sync_playwright
 
 
-def clean_name(name):
-    """
-    Cleans the document name for the heading:
-    - Replaces hyphens and underscores with spaces.
-    - Removes characters that are not alphanumeric (including Spanish accents) or spaces.
-    - Normalizes multiple spaces.
-    - Converts to Title Case.
-    """
+TITLE_CONNECTORS = frozenset("a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los mediante ni o para pero por que según sin sobre tras u un una unas unos y".split())
+
+
+def clean_name(name, mode='title'):
+    """Normalize display names while preserving slashes such as y/o."""
     cleaned = re.sub(r'[-_]', ' ', name)
-    cleaned = re.sub(r'[^a-zA-Z0-9\sáéíóúüñÁÉÍÓÚÜÑ]', '', cleaned)
+    cleaned = re.sub(r'[^a-zA-Z0-9\s/áéíóúüñÁÉÍÓÚÜÑ]', '', cleaned)
     cleaned = ' '.join(cleaned.split())
-    return cleaned.title()
+    if mode == 'upper':
+        return cleaned.upper()
+    if mode == 'lower':
+        return cleaned.lower()
+    # Treat either side of a slash as a word, preserving the separator.
+    index = 0
+    def title_word(match):
+        nonlocal index
+        word = match.group().lower()
+        result = word if index and word in TITLE_CONNECTORS else word.title()
+        index += 1
+        return result
+    return re.sub(r'[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+', title_word, cleaned)
 
 def get_doc_title_from_url(url):
     """
@@ -70,7 +79,7 @@ def generate_gutenberg_html(site_config, page_data):
     """Build document HTML or a native WordPress embed with owned review blocks."""
     folio = page_data.get('folio', '').strip()
     codigo = page_data.get('codigo', '').strip().upper()
-    nombre = clean_name(page_data.get('nombre', '').strip())
+    nombre = clean_name(page_data.get('nombre', '').strip(), site_config.get('document_title_case', 'title'))
     resource_url = page_data.get('enlace', '').strip()
     resource_type = page_data.get('embed_type', 'document').strip()
     document_action = ((page_data.get('document_plan') or {}).get('action') or page_data.get('document_action')

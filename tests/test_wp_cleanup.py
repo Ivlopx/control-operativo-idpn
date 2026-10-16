@@ -277,7 +277,7 @@ class CleanupTests(unittest.TestCase):
         self.assertIn('data-idpn-component="cognito"', matches[2][3])
         embed = block('core/embed', **attributes)
         self.setup_editor([block('core/html', matches[0][3]), embed, block('core/html', matches[2][3])])
-        self.assertEqual(get_document_heading(self.page), 'FE-A-COM-015 Solicitud De Efectivo')
+        self.assertEqual(get_document_heading(self.page), 'FE-A-COM-015 Solicitud de Efectivo')
         self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
         self.assertIn(embed, self.page.evaluate('current'))
         self.assertNotIn('data-idpn-component="folio"', self.page.evaluate('JSON.stringify(current)'))

@@ -36,6 +36,7 @@ def directory_name(value):
 
 def default_matrix(company, zhipos=False):
     matrix = {'schema_version': 1, 'company': company, 'omit_scope_directory': False, 'manual_prefix': 'MG', 'manual_directory': 'manualesDelSistemaDeGestion',
+              'government_directory': 'procedimientosDeGobierno', 'specific_directory': 'procedimientosEspecificos',
               'storage': {'provider': '', 'target': '', 'root': directory_name(company)},
               'types': deepcopy(TYPES), 'government': [], 'specific': []}
     if zhipos:
@@ -105,6 +106,8 @@ def validate_matrix(payload):
               'omit_scope_directory': omit_scope,
               'manual_prefix': _abbreviation(payload.get('manual_prefix', 'MG'), prefix=True),
               'manual_directory': _segment(payload.get('manual_directory') or 'Manuales del Sistema de Gestión'),
+              'government_directory': _segment(payload.get('government_directory') or 'Procedimientos de Gobierno'),
+              'specific_directory': _segment(payload.get('specific_directory') or 'Procedimientos Específicos'),
               'storage': _storage(payload.get('storage', {})), 'types': [], 'government': [], 'specific': []}
     if not result['manual_prefix']:
         raise ValueError('El prefijo de manuales es obligatorio.')
@@ -208,7 +211,7 @@ def plan_document(matrix, data, inventory=None):
     if scope == 'manuals':
         folders = [matrix['manual_directory']]
     else:
-        folders = [] if matrix['omit_scope_directory'] else ['procedimientosDeGobierno' if scope == 'government' else 'procedimientosEspecificos']
+        folders = [] if matrix['omit_scope_directory'] else [matrix['government_directory' if scope == 'government' else 'specific_directory']]
         folders.append(branch['directory'])
         if area:
             folders.append(area['directory'])

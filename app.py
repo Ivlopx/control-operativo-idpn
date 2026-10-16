@@ -204,7 +204,8 @@ def get_configs():
                         "filename": file,
                         "domain": file.replace('.json', ''),
                         "site_name": data.get('site_name', file),
-                        "folio_prefix": data.get('folio_prefix', '')
+                        "folio_prefix": data.get('folio_prefix', ''),
+                        "document_title_case": data.get('document_title_case', 'title')
                     })
             except Exception:
                 pass
@@ -241,8 +242,13 @@ def save_config():
     
     file_path = os.path.join(CONFIG_DIR, f"{domain}.json")
     
+    title_case = data.get('document_title_case', 'title')
+    if title_case not in ('title', 'upper', 'lower'):
+        return jsonify(error='Formato de nombre inválido.'), 400
+
     # Structure of config
     config_payload = {
+        "document_title_case": title_case,
         "site_name": data.get('site_name', domain).strip(),
         "base_url": data.get('base_url', f"https://{domain}").strip(),
         "login_url": data.get('login_url', f"https://{domain}/wp-login.php").strip(),
@@ -326,6 +332,7 @@ def start_automation():
         except (ValueError,FileNotFoundError) as error:
             return jsonify(error=str(error)),400
             
+        page_data["nombre"] = clean_name(data.get("nombre", "").strip(), config_data.get("document_title_case", "title"))
         session_file = os.path.join(user_session_dir, f"{domain}.json")
         
         page_data["folio"] = data.get('folio', '').strip()

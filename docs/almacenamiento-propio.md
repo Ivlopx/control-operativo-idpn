@@ -64,3 +64,9 @@ Antes de producción: validar con un documento de prueba alta, descarga desde Wo
 - [Comportamiento del enlace HTML y atributo download](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a)
 
 Los directorios se normalizan a lowerCamelCase, sin acentos ni espacios: `procedimientosDeGobierno/controlDeDocumentos` o `procedimientosEspecificos/administracion/recursosHumanos`. La carpeta de archivo es `baja`. Los códigos, identificadores internos y nombres de archivo conservan su convención. Al actualizar una instalación sin documentos, las matrices existentes se normalizan al cargarse y guardarse; este cambio no mueve objetos previamente almacenados.
+
+### Nombres y directorios por empresa
+
+En **Sitio WordPress**, el formato del nombre del documento permite elegir Title Case, UPPER CASE o lower case. Title Case conserva los conectores internos en minúsculas (por ejemplo, «Gestión del Almacén y/o Control por Área»); la primera palabra comienza con mayúscula. La diagonal se conserva en los títulos. El código sigue en mayúsculas. El ajuste se aplica a las nuevas publicaciones, sin reescribir páginas existentes.
+
+En **Matriz documental** puedes editar los directorios principales de Gobierno y Específicos, además del directorio de Manuales. Se normalizan a lower camel case. La opción de omitir las carpetas principales sigue afectando solo a Gobierno y Específicos, incluso con nombres personalizados; Manuales conserva siempre su carpeta. Cambiar los nombres no mueve archivos existentes.

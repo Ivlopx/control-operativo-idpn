@@ -20,6 +20,8 @@ class TransferTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.original = dict(application.app.config)
+        self.config_path_patch = patch.object(application, 'CONFIG_DIR', str(self.root))
+        self.config_path_patch.start()
         application.app.config.update(IDPN_AUTH_ENABLED=False,IDPN_CONFIG_DIR=str(self.root),IDPN_UPLOAD_DIR=str(self.root/'uploads'),
             N8N_DOCUMENTS_WEBHOOK_URL='https://n8n.example.test/webhook/idpn-documentos',N8N_DOCUMENTS_WEBHOOK_TOKEN='mock-token')
         from storage_credentials import save_credentials
@@ -37,6 +39,7 @@ class TransferTests(unittest.TestCase):
         self.client = application.app.test_client()
 
     def tearDown(self):
+        self.config_path_patch.stop()
         application.app.config.clear()
         application.app.config.update(self.original)
         application.is_running = False
@@ -116,7 +119,34 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.get_json())
         page_data = thread.call_args.kwargs['args'][2]
         self.assertEqual(page_data['codigo'], 'FE-A-RHS-003')
-        self.assertEqual(page_data['nombre'], 'Gestión De Calidad Y Revisión')
+        self.assertEqual(page_data['nombre'], 'Gestión de Calidad y Revisión')
+
+    def test_company_title_mode_is_saved_exposed_and_enforced(self):
+        from automation import generate_gutenberg_html
+        for mode, expected in [('title', 'Gestión del Almacén y/o Control por Área'),
+                               ('upper', 'GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA'),
+                               ('lower', 'gestión del almacén y/o control por área')]:
+            with self.subTest(mode=mode):
+                response = self.client.post('/api/configs', json={
+                    'domain': 'zhipos-idpn.net', 'site_name': 'ZHIPOS', 'document_title_case': mode})
+                self.assertEqual(response.status_code, 200)
+                config = self.client.get('/api/configs/zhipos-idpn.net').get_json()
+                self.assertEqual(config['document_title_case'], mode)
+                listed = next(item for item in self.client.get('/api/configs').get_json() if item['domain'] == 'zhipos-idpn.net')
+                self.assertEqual(listed['document_title_case'], mode)
+                payload = self.payload()
+                payload.update(nombre='GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA', codigo='fe-a-rhs-003')
+                application.is_running = False
+                with patch('app.threading.Thread') as thread:
+                    response = self.client.post('/api/run', data=payload, content_type='multipart/form-data')
+                self.assertEqual(response.status_code, 200, response.get_json())
+                page_data = thread.call_args.kwargs['args'][2]
+                self.assertEqual(page_data['nombre'], expected)
+                page_data['enlace'] = 'https://files.example.test/document.pdf'
+                self.assertIn('FE-A-RHS-003 ' + expected, generate_gutenberg_html(config, page_data))
+        self.assertEqual(self.client.post('/api/configs', json={
+            'domain': 'zhipos-idpn.net', 'document_title_case': 'invalid'}).status_code, 400)
+        self.assertEqual(self.client.get('/api/configs/zhipos-idpn.net').get_json()['document_title_case'], 'lower')
 
     def test_form_baja_only_publishes_witness_page_without_storage(self):
         payload = {'site':'zhipos-idpn.net','process_type':'create','folio':'268123','codigo':'FG-D-CON-005',

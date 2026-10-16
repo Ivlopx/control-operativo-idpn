@@ -121,6 +121,8 @@
     el('matrix-name').value = matrix.company;
     el('matrix-manual-prefix').value = matrix.manual_prefix || 'MG';
     el('matrix-manual-directory').value = matrix.manual_directory || 'manualesDelSistemaDeGestion';
+    el('matrix-government-directory').value = matrix.government_directory || 'procedimientosDeGobierno';
+    el('matrix-specific-directory').value = matrix.specific_directory || 'procedimientosEspecificos';
     el('matrix-omit-scope').checked = matrix.omit_scope_directory === true;
     el('matrix-provider').value = matrix.storage.provider;
     el('matrix-target').value = matrix.storage.target;
@@ -402,6 +404,8 @@
     matrix.company = el('matrix-name').value.trim();
     matrix.manual_prefix = el('matrix-manual-prefix').value.trim().toUpperCase();
     matrix.manual_directory = el('matrix-manual-directory').value.trim();
+    matrix.government_directory = el('matrix-government-directory').value.trim();
+    matrix.specific_directory = el('matrix-specific-directory').value.trim();
     matrix.omit_scope_directory = el('matrix-omit-scope').checked;
     matrix.storage = {provider: el('matrix-provider').value, target: el('matrix-target').value.trim(), root: el('matrix-root').value.trim(),
       region: el('matrix-region').value.trim(), account: matrix.storage.account || ''};
@@ -509,7 +513,7 @@
       el('classification-fields').disabled = true;
       detectionTimer = setTimeout(detectClassification, 450);
     });
-    ['matrix-name', 'matrix-manual-prefix', 'matrix-manual-directory', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
+    ['matrix-name', 'matrix-manual-prefix', 'matrix-manual-directory', 'matrix-government-directory', 'matrix-specific-directory', 'matrix-provider', 'matrix-target', 'matrix-root', 'matrix-region'].forEach(id => el(id).addEventListener('input', () => {collectStorage(); dirty = true; invalidatePlan();}));
     el('matrix-omit-scope').addEventListener('change', () => {collectStorage(); dirty = true; invalidatePlan();});
     el('matrix-list-targets').addEventListener('click', async () => {
       collectStorage();

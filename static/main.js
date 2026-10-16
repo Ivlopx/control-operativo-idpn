@@ -394,6 +394,7 @@ function selectConfig(domain) {
       document.getElementById('config-create-url').value = data.create_page_url;
       document.getElementById('config-cognito').value = data.cognito_script;
       document.getElementById('config-folio-prefix').value = data.folio_prefix || '';
+      document.getElementById('config-title-case').value = data.document_title_case || 'title';
       
       // Ultimate Member Settings
       const um = data.ultimate_member || {};
@@ -444,6 +445,7 @@ function createNewConfig() {
   document.getElementById('config-create-url').value = '';
   document.getElementById('config-cognito').value = '';
   document.getElementById('config-folio-prefix').value = '';
+  document.getElementById('config-title-case').value = 'title';
   
   // Ultimate Member Defaults
   document.getElementById('config-um-restrict').checked = true;
@@ -475,6 +477,7 @@ function saveConfig(e) {
   });
   
   const payload = {
+    document_title_case: document.getElementById('config-title-case').value,
     domain: domain,
     site_name: document.getElementById('config-name').value.trim(),
     login_url: document.getElementById('config-login-url').value.trim(),
@@ -589,9 +592,18 @@ function setTerminalLoading(active) {
   }
 }
 
-function normalizeDocumentName(value) {
-  return value.replace(/[-_]/g, ' ').replace(/[^a-zA-Z0-9\sáéíóúüñÁÉÍÓÚÜÑ]/g, '')
-    .trim().replace(/\s+/g, ' ').toLocaleLowerCase('es').replace(/(^|[^\p{L}])(\p{L})/gu, (_, prefix, letter) => prefix + letter.toLocaleUpperCase('es'));
+const titleConnectors = new Set('a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los mediante ni o para pero por que según sin sobre tras u un una unas unos y'.split(' '));
+function normalizeDocumentName(value, mode) {
+  mode = mode || configsList.find(config => config.domain === document.getElementById('site-select-p1').value)?.document_title_case || 'title';
+  const cleaned = value.replace(/[-_]/g, ' ').replace(/[^a-zA-Z0-9\s/áéíóúüñÁÉÍÓÚÜÑ]/g, '')
+    .trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
+  if (mode === 'upper') return cleaned.toLocaleUpperCase('es');
+  if (mode === 'lower') return cleaned;
+  let index = 0;
+  return cleaned.replace(/[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+/g, word => {
+    const keepLower = index++ > 0 && titleConnectors.has(word);
+    return keepLower ? word : word[0].toLocaleUpperCase('es') + word.slice(1);
+  });
 }
 
 // Run the Playwright Automation Task

@@ -198,7 +198,28 @@ class MatrixUITests(unittest.TestCase):
         self.assertEqual(self.page.locator('#input-codigo-p1').input_value(), 'PG-D-CNO-003')
         self.page.locator('#input-nombre-p1').fill('GESTIÓN_de-calidad Y revisión')
         self.page.locator('#input-nombre-p1').blur()
-        self.assertEqual(self.page.locator('#input-nombre-p1').input_value(), 'Gestión De Calidad Y Revisión')
+        self.assertEqual(self.page.locator('#input-nombre-p1').input_value(), 'Gestión de Calidad y Revisión')
+        self.assertEqual(self.errors, [])
+
+    def test_name_casing_and_slashes_follow_selected_company(self):
+        self.page.evaluate("configsList.find(c => c.domain === 'zhipos-idpn.net').document_title_case = 'upper'")
+        field = self.page.locator('#input-nombre-p1')
+        field.fill('gestión del almacén y/o control por área')
+        field.blur()
+        self.assertEqual(field.input_value(), 'GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA')
+        self.page.evaluate("configsList.find(c => c.domain === 'zhipos-idpn.net').document_title_case = 'lower'")
+        field.fill('GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA')
+        field.blur()
+        self.assertEqual(field.input_value(), 'gestión del almacén y/o control por área')
+        self.page.locator('#site-select-p1').select_option('otra.net')
+        field.fill('GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA')
+        field.blur()
+        self.assertEqual(field.input_value(), 'Gestión del Almacén y/o Control por Área')
+        self.page.locator('#nav-settings').click()
+        self.page.locator('#config-company-select').select_option('otra.net')
+        self.page.wait_for_function("document.getElementById('config-domain').value === 'otra.net'")
+        self.assertEqual(self.page.locator('#config-title-case').input_value(), 'title')
+        self.assertEqual(self.page.locator('#config-title-case option').count(), 3)
         self.assertEqual(self.errors, [])
 
     def test_unchecking_policy_without_company_hides_manual_classification(self):
@@ -538,6 +559,23 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#matrix-file').set_input_files({'name':'manual.pdf','mimeType':'application/pdf','buffer':b'%PDF test'})
         self.page.locator('#matrix-result').wait_for(state='visible')
         self.assertIn('zhipos/manualesCorporativos', self.page.locator('#matrix-result').inner_text())
+        self.assertEqual(self.errors, [])
+
+    def test_main_scope_directory_names_can_be_configured_per_company(self):
+        self.page.locator('#nav-settings').click()
+        self.page.locator('#company-matrix-btn').click()
+        self.page.locator('#matrix-government-directory').fill('Gobierno Corporativo')
+        self.page.locator('#matrix-specific-directory').fill('Procesos de Empresa')
+        with self.page.expect_response(lambda response: '/api/matrices/' in response.url and response.request.method == 'PUT'):
+            self.page.locator('#matrix-save').click()
+        self.page.wait_for_function("document.getElementById('matrix-government-directory').value === 'gobiernoCorporativo'")
+        stored = json.loads((self.root / 'matrices/zhipos-idpn.net.json').read_text())
+        self.assertEqual(stored['government_directory'], 'gobiernoCorporativo')
+        self.assertEqual(stored['specific_directory'], 'procesosDeEmpresa')
+        self.page.locator('#config-company-select').select_option('otra.net')
+        self.page.wait_for_function("document.getElementById('matrix-name').value === 'Otra empresa'")
+        self.assertEqual(self.page.locator('#matrix-government-directory').input_value(), 'procedimientosDeGobierno')
+        self.assertEqual(self.page.locator('#matrix-specific-directory').input_value(), 'procedimientosEspecificos')
         self.assertEqual(self.errors, [])
 
     def test_government_preview_and_apply_code_to_wordpress(self):
