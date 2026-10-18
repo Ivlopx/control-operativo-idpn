@@ -121,6 +121,16 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(page_data['codigo'], 'FE-A-RHS-003')
         self.assertEqual(page_data['nombre'], 'Gestión de Calidad y Revisión')
 
+    def test_title_case_capitalizes_mediante_and_preserves_selected_connectors(self):
+        from automation import clean_name, generate_gutenberg_html
+        raw = 'CONTROL MEDIANTE EQUIPO, Y/O REVISIÓN DEL ÁREA'
+        expected = 'Control Mediante Equipo, y/o Revisión del Área'
+        self.assertEqual(clean_name(raw), expected)
+        self.assertEqual(clean_name(raw, 'upper'), raw)
+        self.assertEqual(clean_name(raw, 'lower'), raw.lower())
+        self.assertIn('PE-A-001 ' + expected, generate_gutenberg_html({}, {
+            'codigo':'PE-A-001', 'nombre':raw, 'folio':'268123', 'enlace':'https://files.test/document.pdf'}))
+
     def test_company_title_mode_is_saved_exposed_and_enforced(self):
         from automation import generate_gutenberg_html
         for mode, expected in [('title', 'Gestión del Almacén, y/o Control por Área'),

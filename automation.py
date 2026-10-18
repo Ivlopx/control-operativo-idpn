@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 from document_stamp import valid_stamp
 
 
-TITLE_CONNECTORS = frozenset("a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los mediante ni o para pero por que según sin sobre tras u un una unas unos y".split())
+TITLE_CONNECTORS = frozenset("a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los ni o para pero por que según sin sobre tras u un una unas unos y".split())
 
 
 def clean_name(name, mode='title'):

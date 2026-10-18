@@ -592,7 +592,7 @@ function setTerminalLoading(active) {
   }
 }
 
-const titleConnectors = new Set('a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los mediante ni o para pero por que según sin sobre tras u un una unas unos y'.split(' '));
+const titleConnectors = new Set('a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los ni o para pero por que según sin sobre tras u un una unas unos y'.split(' '));
 function normalizeDocumentName(value, mode) {
   mode = mode || configsList.find(config => config.domain === document.getElementById('site-select-p1').value)?.document_title_case || 'title';
   const cleaned = value.replace(/[-_]/g, ' ').replace(/[^a-zA-Z0-9\s/,áéíóúüñÁÉÍÓÚÜÑ]/g, '')
@@ -794,7 +794,6 @@ function connectToLogStream() {
       
       if (status === 'success') {
         const header = fs.header || folio;
-        const formattedHeader = formatHeaderToTitleCase(header);
         const url = fs.url || '';
         
         const section = document.getElementById('results-exitosos-section');
@@ -808,14 +807,14 @@ function connectToLogStream() {
           const row = document.createElement('tr');
           row.innerHTML = `
             <td style="padding: 10px 12px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              <div class="result-copy-box" onclick="copyValueToClipboard('${escapeHtml(formattedHeader)}', this)" style="cursor: pointer; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #334155; font-family: monospace; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box;" title="Haz clic para copiar">
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">${escapeHtml(formattedHeader)}</span> 
+              <div class="result-copy-box" style="cursor: pointer; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #334155; font-family: monospace; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box;" title="Haz clic para copiar">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">${escapeHtml(header)}</span>
                 <i class="fa-solid fa-copy" style="font-size: 11px; opacity: 0.6; flex-shrink: 0;"></i>
               </div>
             </td>
             <td style="padding: 10px 12px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               ${url ? `
-                <div class="result-copy-box" onclick="copyValueToClipboard('${escapeHtml(url)}', this)" style="cursor: pointer; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0397D1; font-family: monospace; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box;" title="Haz clic para copiar">
+                <div class="result-copy-box" style="cursor: pointer; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #0397D1; font-family: monospace; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; width: 100%; box-sizing: border-box;" title="Haz clic para copiar">
                   <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">${escapeHtml(url)}</span> 
                   <i class="fa-solid fa-copy" style="font-size: 11px; opacity: 0.6; flex-shrink: 0;"></i>
                 </div>
@@ -831,6 +830,9 @@ function connectToLogStream() {
               ` : `<span style="font-size: 12px; color: #94a3b8;">-</span>`}
             </td>
           `;
+          const copyBoxes = row.querySelectorAll('.result-copy-box');
+          copyBoxes[0].addEventListener('click', () => copyValueToClipboard(header, copyBoxes[0]));
+          if (copyBoxes[1]) copyBoxes[1].addEventListener('click', () => copyValueToClipboard(url, copyBoxes[1]));
           tbody.appendChild(row);
         }
       } else if (status === 'failed') {
@@ -1009,20 +1011,6 @@ function copyPageUrl(url) {
       setTimeout(() => { btn.innerHTML = original; }, 2000);
     }
   });
-}
-
-// Format document header text to Title Case, keeping the code token in uppercase
-function formatHeaderToTitleCase(str) {
-  if (!str) return "";
-  return str.split(/\s+/).map(word => {
-    // A code token typically has hyphens, underscores, or digits and matches [A-Z0-9_-]
-    const isCode = /^[A-Z0-9_\-]+$/.test(word) && (word.includes('-') || word.includes('_') || /[0-9]/.test(word));
-    if (isCode) {
-      return word; // Keep uppercase
-    }
-    if (word.length === 0) return "";
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-  }).join(" ");
 }
 
 // Copy a custom value from result boxes to clipboard with premium feedback animation

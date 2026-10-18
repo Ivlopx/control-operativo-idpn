@@ -348,11 +348,37 @@ class MatrixUITests(unittest.TestCase):
           sseConnection.onmessage({data:JSON.stringify({message:'Resultado simulado',level:'success',folio_status:{status:'success',folio:'268123',domain:'zhipos-idpn.net',header:'POLÍTICA DE GESTIÓN DOCUMENTAL CON UN NOMBRE EXTENSO PARA VERIFICAR LA LECTURA COMPLETA',url:'https://example.test/documentos/politica-de-gestion-documental-con-un-nombre-extenso/'}})});
         }""")
         span = self.page.locator('#results-exitosos-tbody .result-copy-box span').first
-        self.assertIn('Lectura Completa', span.inner_text())
+        self.assertIn('LECTURA COMPLETA', span.inner_text())
         self.assertEqual(span.evaluate('element => getComputedStyle(element).whiteSpace'), 'normal')
         self.assertGreater(span.bounding_box()['height'], 30)
         self.page.set_viewport_size({'width':390,'height':844})
         self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        self.assertEqual(self.errors, [])
+
+    def test_second_process_shows_and_copies_the_exact_published_heading(self):
+        self.page.locator('#nav-process2').click()
+        self.page.evaluate("""() => {
+            window.EventSource = class {close(){}};
+            connectToLogStream();
+            document.getElementById('results-container-p2').style.display = 'flex';
+            Object.defineProperty(navigator, 'clipboard', {configurable:true, value:{
+                writeText: async text => {window.copiedHeader = text;}
+            }});
+        }""")
+        headers = ['PE-A-001 Revisión Mediante Equipo, y/o Control del Área',
+                   'PE-A-001 INSPECCIÓN MEDIANTE EQUIPO, Y/O CONTROL',
+                   "PE-A-001 revisión del equipo, y/o registro d'Ávila"]
+        for index, header in enumerate(headers):
+            self.page.evaluate("""header => sseConnection.onmessage({data:JSON.stringify({
+                message:'Resultado', level:'success', folio_status:{status:'success', folio:'268123',
+                header, url:'https://example.test/documento'}
+            })})""", header)
+            box = self.page.locator('#results-exitosos-tbody tr').nth(index).locator('.result-copy-box').first
+            self.assertEqual(box.locator('span').inner_text(), header)
+            box.click()
+            self.assertEqual(self.page.evaluate('window.copiedHeader'), header)
+        self.assertEqual(self.page.evaluate("normalizeDocumentName('CONTROL MEDIANTE EQUIPO, Y/O REVISIÓN DEL ÁREA', 'title')"),
+                         'Control Mediante Equipo, y/o Revisión del Área')
         self.assertEqual(self.errors, [])
 
     def test_sections_have_routes_and_survive_refresh_and_back(self):
