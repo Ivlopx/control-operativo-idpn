@@ -530,7 +530,7 @@
       el('classification-summary').textContent = 'Puedes modificar la clasificación y cada campo manualmente.';
     });
     el('matrix-document-name').addEventListener('blur', () => {
-      el('matrix-document-name').value = normalizeDocumentName(el('matrix-document-name').value);
+      el('matrix-document-name').value = formatDocumentNameInput();
       invalidatePlan();
     });
     el('matrix-existing-code').addEventListener('input', () => {

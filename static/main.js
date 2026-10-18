@@ -4,6 +4,7 @@ let selectedConfigDomain = null;
 let sseConnection = null;
 let browserSseConnection = null;
 let activeProcessMode = 'create';
+const documentNameState = {suggested:null, manual:false};
 
 // Page Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     new ResizeObserver(syncEntryHeight).observe(previewColumn);
     syncEntryHeight();
+  });
+
+  const documentNameInput = document.getElementById('input-nombre-p1');
+  if (documentNameInput) documentNameInput.addEventListener('input', () => {
+    if (!documentNameInput.value.trim()) {
+      documentNameState.suggested = null;
+      documentNameState.manual = false;
+    } else if (documentNameState.suggested !== null && documentNameInput.value !== documentNameState.suggested) {
+      documentNameState.manual = true;
+    }
   });
 
   loadConfigs();
@@ -606,6 +617,21 @@ function normalizeDocumentName(value, mode) {
   });
 }
 
+// Format once; subsequent edits belong to the user until the field is cleared.
+function formatDocumentNameInput() {
+  const input = document.getElementById('input-nombre-p1');
+  if (!input.value.trim()) {
+    documentNameState.suggested = null;
+    documentNameState.manual = false;
+    input.value = '';
+    return '';
+  }
+  if (documentNameState.manual) return input.value.trim();
+  input.value = normalizeDocumentName(input.value);
+  documentNameState.suggested = input.value;
+  return input.value;
+}
+
 // Run the Playwright Automation Task
 function runAutomation(processType, e) {
   e.preventDefault();
@@ -627,7 +653,7 @@ function runAutomation(processType, e) {
     const politicaChk = document.getElementById('input-is-politica-p1');
     is_politica = politicaChk ? politicaChk.checked : false;
     codigo = is_politica ? '' : document.getElementById('input-codigo-p1').value.trim().toUpperCase();
-    nombre = normalizeDocumentName(document.getElementById('input-nombre-p1').value);
+    nombre = formatDocumentNameInput();
     document.getElementById('input-nombre-p1').value = nombre;
     enlace = document.getElementById('input-enlace-p1').value.trim();
     embed_type = document.querySelector('input[name="input-embed-type-p1"]:checked').value;
@@ -689,7 +715,10 @@ function runAutomation(processType, e) {
     site, folio, folios, codigo, nombre, enlace, embed_type, is_politica, process_type: processType
   };
   
-  if (processType === 'create') payload.action = document.getElementById('matrix-action').value;
+  if (processType === 'create') {
+    payload.action = document.getElementById('matrix-action').value;
+    payload.name_manual = documentNameState.manual;
+  }
 
   // Send POST request to execute automation
   let body = JSON.stringify(payload);

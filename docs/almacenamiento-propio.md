@@ -78,3 +78,5 @@ Formulario / Web permite Alta, Cambio y Baja. Cambio publica el enlace como bloq
 Se permite Cambio aunque el almacenamiento no contenga antecedentes reconocidos: sirve para documentos publicados antes de usar la aplicación. Se conserva la acción de cambio, se guarda el archivo nuevo con fecha y solo se archivan antecedentes que realmente se encuentren. No es obligatorio registrar un Alta previa.
 
 El formato de nombres se aplica al capturar y publicar en el primer proceso. El segundo proceso conserva el encabezado publicado y lo muestra y copia sin aplicar otro limpiador. En el Title Case personalizado, «Mediante» lleva mayúscula inicial; conectores seleccionados como «de», «del», «y» y «por» siguen en minúsculas dentro del título.
+
+El formato del nombre se propone al salir del campo por primera vez. Si el usuario corrige ese resultado (por ejemplo, cambia «Cfe» por «CFE»), se respeta su escritura en la captura y la publicación, incluso si difiere del formato de la empresa. Vaciar el campo reinicia la propuesta automática para el siguiente nombre.

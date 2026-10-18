@@ -131,6 +131,34 @@ class TransferTests(unittest.TestCase):
         self.assertIn('PE-A-001 ' + expected, generate_gutenberg_html({}, {
             'codigo':'PE-A-001', 'nombre':raw, 'folio':'268123', 'enlace':'https://files.test/document.pdf'}))
 
+    def test_manual_name_is_preserved_by_server_and_published_html(self):
+        from automation import generate_gutenberg_html
+        corrected = 'Solicitud a CFE, y/o Control del Área'
+        for resource in ('document', 'form'):
+            with self.subTest(resource=resource):
+                application.is_running = False
+                if resource == 'document':
+                    payload = self.payload()
+                    payload.update(nombre=corrected, name_manual='true')
+                    content_type = 'multipart/form-data'
+                    kwargs = {'data':payload, 'content_type':content_type}
+                else:
+                    kwargs = {'json':{'site':'zhipos-idpn.net', 'process_type':'create', 'folio':'268123',
+                        'codigo':'FE-A-001', 'nombre':corrected, 'name_manual':True,
+                        'enlace':'https://example.test/formulario', 'embed_type':'form'}}
+                with patch('app.threading.Thread') as thread:
+                    response = self.client.post('/api/run', **kwargs)
+                self.assertEqual(response.status_code, 200, response.get_json())
+                page_data = thread.call_args.kwargs['args'][2]
+                self.assertEqual(page_data['nombre'], corrected)
+                self.assertTrue(page_data['name_manual'])
+                page_data['enlace'] = 'https://files.test/document.pdf'
+                self.assertIn(corrected, generate_gutenberg_html({'document_title_case':'upper'}, page_data))
+        escaped = generate_gutenberg_html({}, {'nombre':'CFE <script>alert(1)</script>', 'name_manual':True,
+            'enlace':'https://files.test/document.pdf', 'folio':'268123'})
+        self.assertIn('&lt;script&gt;', escaped)
+        self.assertNotIn('<script>alert', escaped)
+
     def test_company_title_mode_is_saved_exposed_and_enforced(self):
         from automation import generate_gutenberg_html
         for mode, expected in [('title', 'Gestión del Almacén, y/o Control por Área'),

@@ -312,10 +312,12 @@ def start_automation():
     config_data = None
     session_file = None
     
+    name_manual = str(data.get('name_manual', False)).lower() in ('true', '1')
     page_data = {
         '_session_dir': user_session_dir,
         "codigo": data.get('codigo', '').strip().upper(),
-        "nombre": clean_name(data.get('nombre', '').strip()),
+        "nombre": clean_name(data.get('nombre', '').strip(), 'preserve' if name_manual else 'title'),
+        "name_manual": name_manual,
         "enlace": data.get('enlace', '').strip(),
         "download_url": data.get('download_url', '').strip(),
         "filename": data.get('filename', '').strip(),
@@ -332,7 +334,7 @@ def start_automation():
         except (ValueError,FileNotFoundError) as error:
             return jsonify(error=str(error)),400
             
-        page_data["nombre"] = clean_name(data.get("nombre", "").strip(), config_data.get("document_title_case", "title"))
+        page_data["nombre"] = clean_name(data.get("nombre", "").strip(), "preserve" if name_manual else config_data.get("document_title_case", "title"))
         session_file = os.path.join(user_session_dir, f"{domain}.json")
         
         page_data["folio"] = data.get('folio', '').strip()

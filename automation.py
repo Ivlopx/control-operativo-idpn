@@ -14,6 +14,8 @@ TITLE_CONNECTORS = frozenset("a al ante bajo con contra de del desde durante e e
 
 def clean_name(name, mode='title'):
     """Normalize display names while preserving commas and slashes such as y/o."""
+    if mode == 'preserve':
+        return ' '.join(name.split())
     cleaned = re.sub(r'[-_]', ' ', name)
     cleaned = re.sub(r'[^a-zA-Z0-9\s/,áéíóúüñÁÉÍÓÚÜÑ]', '', cleaned)
     cleaned = ' '.join(cleaned.split())
@@ -80,7 +82,7 @@ def generate_gutenberg_html(site_config, page_data):
     """Build document HTML or a native WordPress embed with owned review blocks."""
     folio = page_data.get('folio', '').strip()
     codigo = page_data.get('codigo', '').strip().upper()
-    nombre = clean_name(page_data.get('nombre', '').strip(), site_config.get('document_title_case', 'title'))
+    nombre = clean_name(page_data.get('nombre', '').strip(), 'preserve' if page_data.get('name_manual') is True else site_config.get('document_title_case', 'title'))
     resource_url = page_data.get('enlace', '').strip()
     resource_type = page_data.get('embed_type', 'document').strip()
     document_action = ((page_data.get('document_plan') or {}).get('action') or page_data.get('document_action')
