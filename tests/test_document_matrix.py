@@ -228,10 +228,14 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Nueva versión'):
             plan_document(self.matrix, self.data, [{'key': f'{base}/baja/PG-D-CNO-003-name-v001.pdf'}])
 
-    def test_version_rejects_a_code_with_no_files(self):
+    def test_version_accepts_document_published_before_using_the_app(self):
         self.data['action'] = 'version'
-        with self.assertRaisesRegex(ValueError, 'Usa «Alta»'):
-            plan_document(self.matrix, self.data, [])
+        plan = plan_document(self.matrix, self.data, [])
+        self.assertEqual(plan['action'], 'version')
+        self.assertEqual(plan['version'], '2026-10-18')
+        self.assertEqual(plan['archive_operations'], [])
+        self.assertTrue(plan['key'].endswith('-2026-10-18.pdf'))
+        self.assertFalse(plan['overwrite'])
 
     def test_baja_archives_all_active_versions_without_upload(self):
         base = plan_document(self.matrix, self.data)['classification_directory']

@@ -74,3 +74,5 @@ En **Matriz documental** puedes editar los directorios principales de Gobierno y
 La fecha y su consecutivo se guardan también como atributos invisibles del HTML publicado, que el segundo proceso conserva. Los reintentos mantienen el nombre reservado originalmente, incluso al cambiar de día.
 
 Formulario / Web permite Alta, Cambio y Baja. Cambio publica el enlace como bloque de WordPress y registra la operación únicamente en la marca invisible `data-idpn-action="cambio"`; no sube archivos ni modifica S3 o Azure. El segundo proceso conserva esa marca al retirar Cognito y el folio visible.
+
+Se permite Nueva versión aunque el almacenamiento no contenga antecedentes reconocidos: sirve para documentos publicados antes de usar la aplicación. Se conserva la acción de cambio, se guarda el archivo nuevo con fecha y solo se archivan antecedentes que realmente se encuentren. No es obligatorio registrar un Alta previa.

@@ -265,8 +265,6 @@ def plan_document(matrix, data, inventory=None):
         return result
     if inventory is not None and versions and action == 'alta':
         raise ValueError('Este código ya tiene versiones guardadas. Usa «Nueva versión».')
-    if inventory is not None and not versions and action == 'version':
-        raise ValueError('Este código todavía no tiene archivos guardados. Usa «Alta».')
     name = str(data.get('name', '')).strip()
     if not name:
         raise ValueError('El nombre del documento es obligatorio.')

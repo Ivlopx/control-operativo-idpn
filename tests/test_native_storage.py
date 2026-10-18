@@ -96,6 +96,21 @@ class NativeLifecycleTests(unittest.TestCase):
         self.assertEqual(len(self.active_keys()), 1)
         self.assertEqual(first['download_url'], first['url'])
 
+    def test_version_without_known_antecedent_uploads_and_preserves_operation(self):
+        for policy in (False, True):
+            with self.subTest(policy=policy):
+                self.cloud = MemoryStorage()
+                unrelated = self.meta['directory'] + '/OTRO-001-historico.pdf'
+                self.cloud.put(unrelated, b'historical')
+                changes = {'action':'version', 'code':'' if policy else self.meta['code'], 'is_politica':policy}
+                current = self.run_op(**changes)
+                self.assertEqual(current['action'], 'version')
+                self.assertEqual(current['version'], '2026-10-18')
+                self.assertEqual(current['archived'], [])
+                self.assertEqual(self.cloud.get(current['key'])[0], b'original')
+                self.assertEqual(self.cloud.get(unrelated)[0], b'historical')
+                self.assertEqual(self.run_op(**changes), current)
+
     def test_manual_lifecycle_keeps_the_direct_manuals_directory(self):
         self.meta.update(code='MG-001', type_id='manual', directory='company/manualesDelSistemaDeGestion')
         first = self.run_op()

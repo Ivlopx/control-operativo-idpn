@@ -103,8 +103,6 @@ def execute_storage(meta, temporary_file=None, provider=None):
             files = [item for item in cloud.inventory(meta['directory'] + '/') if file_matches(meta, item['key'])]
             if action == 'alta' and files:
                 raise ValueError('El documento existe; selecciona Nueva versión.')
-            if action == 'version' and not files:
-                raise ValueError('El documento no existe; selecciona Alta.')
             old = [dict(item, destination=meta['directory'] + '/baja/' + item['key'].split('/')[-1], archived=False)
                    for item in files if not item['key'][len(meta['directory']) + 1:].startswith('baja/')]
             version = next_stamp(files)
