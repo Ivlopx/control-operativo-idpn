@@ -595,7 +595,7 @@ function setTerminalLoading(active) {
 const titleConnectors = new Set('a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los mediante ni o para pero por que según sin sobre tras u un una unas unos y'.split(' '));
 function normalizeDocumentName(value, mode) {
   mode = mode || configsList.find(config => config.domain === document.getElementById('site-select-p1').value)?.document_title_case || 'title';
-  const cleaned = value.replace(/[-_]/g, ' ').replace(/[^a-zA-Z0-9\s/áéíóúüñÁÉÍÓÚÜÑ]/g, '')
+  const cleaned = value.replace(/[-_]/g, ' ').replace(/[^a-zA-Z0-9\s/,áéíóúüñÁÉÍÓÚÜÑ]/g, '')
     .trim().replace(/\s+/g, ' ').toLocaleLowerCase('es');
   if (mode === 'upper') return cleaned.toLocaleUpperCase('es');
   if (mode === 'lower') return cleaned;

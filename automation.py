@@ -12,9 +12,9 @@ TITLE_CONNECTORS = frozenset("a al ante bajo con contra de del desde durante e e
 
 
 def clean_name(name, mode='title'):
-    """Normalize display names while preserving slashes such as y/o."""
+    """Normalize display names while preserving commas and slashes such as y/o."""
     cleaned = re.sub(r'[-_]', ' ', name)
-    cleaned = re.sub(r'[^a-zA-Z0-9\s/áéíóúüñÁÉÍÓÚÜÑ]', '', cleaned)
+    cleaned = re.sub(r'[^a-zA-Z0-9\s/,áéíóúüñÁÉÍÓÚÜÑ]', '', cleaned)
     cleaned = ' '.join(cleaned.split())
     if mode == 'upper':
         return cleaned.upper()

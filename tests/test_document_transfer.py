@@ -123,9 +123,9 @@ class TransferTests(unittest.TestCase):
 
     def test_company_title_mode_is_saved_exposed_and_enforced(self):
         from automation import generate_gutenberg_html
-        for mode, expected in [('title', 'Gestión del Almacén y/o Control por Área'),
-                               ('upper', 'GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA'),
-                               ('lower', 'gestión del almacén y/o control por área')]:
+        for mode, expected in [('title', 'Gestión del Almacén, y/o Control por Área'),
+                               ('upper', 'GESTIÓN DEL ALMACÉN, Y/O CONTROL POR ÁREA'),
+                               ('lower', 'gestión del almacén, y/o control por área')]:
             with self.subTest(mode=mode):
                 response = self.client.post('/api/configs', json={
                     'domain': 'zhipos-idpn.net', 'site_name': 'ZHIPOS', 'document_title_case': mode})
@@ -135,7 +135,7 @@ class TransferTests(unittest.TestCase):
                 listed = next(item for item in self.client.get('/api/configs').get_json() if item['domain'] == 'zhipos-idpn.net')
                 self.assertEqual(listed['document_title_case'], mode)
                 payload = self.payload()
-                payload.update(nombre='GESTIÓN DEL ALMACÉN Y/O CONTROL POR ÁREA', codigo='fe-a-rhs-003')
+                payload.update(nombre='GESTIÓN DEL ALMACÉN, Y/O CONTROL POR ÁREA', codigo='fe-a-rhs-003')
                 application.is_running = False
                 with patch('app.threading.Thread') as thread:
                     response = self.client.post('/api/run', data=payload, content_type='multipart/form-data')
@@ -147,6 +147,19 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/configs', json={
             'domain': 'zhipos-idpn.net', 'document_title_case': 'invalid'}).status_code, 400)
         self.assertEqual(self.client.get('/api/configs/zhipos-idpn.net').get_json()['document_title_case'], 'lower')
+
+    def test_web_form_name_preserves_commas_in_publication(self):
+        from automation import generate_gutenberg_html
+        payload = {'site': 'zhipos-idpn.net', 'process_type': 'create', 'folio': '268123',
+                   'codigo': 'fe-a-001', 'nombre': 'SOLICITUD DE EQUIPO, HERRAMIENTAS Y/O MATERIALES',
+                   'enlace': 'https://example.test/formulario', 'embed_type': 'form'}
+        with patch('app.threading.Thread') as thread:
+            response = self.client.post('/api/run', json=payload)
+        self.assertEqual(response.status_code, 200, response.get_json())
+        page_data = thread.call_args.kwargs['args'][2]
+        expected = 'Solicitud de Equipo, Herramientas y/o Materiales'
+        self.assertEqual(page_data['nombre'], expected)
+        self.assertIn('FE-A-001 ' + expected, generate_gutenberg_html({}, page_data))
 
     def test_form_baja_only_publishes_witness_page_without_storage(self):
         payload = {'site':'zhipos-idpn.net','process_type':'create','folio':'268123','codigo':'FG-D-CON-005',
