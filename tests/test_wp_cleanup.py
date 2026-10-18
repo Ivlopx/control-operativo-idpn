@@ -284,7 +284,7 @@ class CleanupTests(unittest.TestCase):
         self.assertEqual(remove_cognito_and_folio(self.page, lambda *args: None), 'https://example.test/folio/')
 
     def test_internal_actions_are_invisible_and_survive_second_process(self):
-        for resource, actions in [('document', ('alta','version','baja')), ('form', ('alta','baja'))]:
+        for resource, actions in [('document', ('alta','version','baja')), ('form', ('alta','cambio','baja'))]:
             for action in actions:
                 html = generate_gutenberg_html({'cognito_script':'<script src="https://www.cognitoforms.com/f/seamless.js"></script>'},
                             {'codigo':'FE-A-COM-015','nombre':'Solicitud','folio':'268202','embed_type':resource,

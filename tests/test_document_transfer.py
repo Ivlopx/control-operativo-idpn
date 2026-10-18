@@ -161,6 +161,24 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(page_data['nombre'], expected)
         self.assertIn('FE-A-001 ' + expected, generate_gutenberg_html({}, page_data))
 
+    def test_form_change_only_publishes_hidden_operation_without_storage(self):
+        from automation import generate_gutenberg_html
+        (self.root/'matrices/zhipos-idpn.net.json').unlink()
+        payload = {'site':'zhipos-idpn.net', 'process_type':'create', 'folio':'268123', 'codigo':'FE-A-001',
+                   'nombre':'Solicitud', 'enlace':'https://example.test/formulario', 'embed_type':'form', 'action':'cambio'}
+        with patch('app.threading.Thread') as thread:
+            response = self.client.post('/api/run', json=payload)
+        self.assertEqual(response.status_code, 200, response.get_json())
+        args = thread.call_args.kwargs['args']
+        self.assertNotIn('document_plan', args[2])
+        self.assertNotIn('temporary_file', args[2])
+        self.assertEqual(args[2]['document_action'], 'cambio')
+        self.assertIn('data-idpn-action="cambio"', generate_gutenberg_html({}, args[2]))
+        with patch('app.transfer_document') as storage, patch('app.run_wp_automation', return_value={'url':'https://example.test/cambio'}) as wp:
+            application.run_in_background(*args)
+        storage.assert_not_called()
+        self.assertEqual(wp.call_args.args[2]['enlace'], payload['enlace'])
+
     def test_form_baja_only_publishes_witness_page_without_storage(self):
         payload = {'site':'zhipos-idpn.net','process_type':'create','folio':'268123','codigo':'FG-D-CON-005',
                    'nombre':'Solicitud','enlace':'https://example.test/formulario','embed_type':'form','action':'baja'}

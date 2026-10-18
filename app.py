@@ -343,8 +343,8 @@ def start_automation():
         if page_data['embed_type'] == 'form':
             form_action = data.get('action', 'alta')
             page_data['document_action'] = form_action
-            if form_action not in ('alta', 'baja'):
-                return jsonify(error='El formulario solo admite Alta o Baja.'),400
+            if form_action not in ('alta', 'cambio', 'baja'):
+                return jsonify(error='El formulario solo admite Alta, Cambio o Baja.'),400
             if not page_data['codigo'] or not page_data['nombre']:
                 return jsonify(error='Captura el código y el nombre del formulario.'),400
             if form_action == 'baja':

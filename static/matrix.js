@@ -227,7 +227,8 @@
   }
   function refreshAction() {
     const isForm = el('matrix-type').value === 'formulario' || (!el('matrix-type').value && document.querySelector('input[name="input-embed-type-p1"]:checked').value === 'form');
-    if (isForm && el('matrix-action').value === 'version') el('matrix-action').value = 'alta';
+    if (isForm && el('matrix-action').value === 'version') el('matrix-action').value = 'cambio';
+    if (!isForm && el('matrix-action').value === 'cambio') el('matrix-action').value = 'version';
     el('matrix-action').disabled = false;
     el('document-action-label').textContent = isForm ? 'Acción del formulario' : 'Acción documental';
     if (isManuals()) el('input-is-politica-p1').checked = false;
@@ -258,8 +259,9 @@
     }
     document.querySelectorAll('input[name="document-action"]').forEach(radio => {
       radio.checked = radio.value === el('matrix-action').value;
-      radio.disabled = isForm && radio.value === 'version';
-      radio.closest('.action-choice').hidden = isForm && radio.value === 'version';
+      const unavailable = isForm ? radio.value === 'version' : radio.value === 'cambio';
+      radio.disabled = unavailable;
+      radio.closest('.action-choice').hidden = unavailable;
     });
     document.querySelector('.document-actions').classList.toggle('form-actions', isForm);
     const baja = el('matrix-action').value === 'baja';

@@ -103,7 +103,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('.resource-choice').filter(has_text='Formulario / Web').click()
         self.assertEqual(self.page.locator('#matrix-action').input_value(), 'baja')
         self.assertEqual(self.page.locator('input[name="document-action"]:disabled').count(), 1)
-        self.assertEqual(self.page.locator('.action-choice:visible').count(), 2)
+        self.assertEqual(self.page.locator('.action-choice:visible').count(), 3)
         self.page.locator('.resource-choice').filter(has_text='Documento').click()
         for width in [1440, 390]:
             self.page.set_viewport_size({'width': width, 'height': 900})
@@ -192,6 +192,20 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#input-is-politica-p1').uncheck()
         self.assertTrue(self.page.locator('#campo-codigo-p1').is_visible())
         self.assertTrue(self.page.locator('#input-codigo-p1').evaluate('input => input.required'))
+        self.assertEqual(self.errors, [])
+
+    def test_form_change_has_no_file_or_classification_and_switches_cleanly(self):
+        self.page.locator('.resource-choice').filter(has_text='Formulario / Web').click()
+        self.page.locator('.action-choice').filter(has_text='Cambio').click()
+        self.assertEqual(self.page.locator('#matrix-action').input_value(), 'cambio')
+        self.assertEqual(self.page.locator('input[name="document-action"]:checked').count(), 1)
+        self.assertFalse(self.page.locator('#matrix-file-field').is_visible())
+        self.assertFalse(self.page.locator('#document-routing').is_visible())
+        self.assertTrue(self.page.locator('#campo-enlace-p1').is_visible())
+        self.page.locator('.resource-choice').filter(has_text='Documento').click()
+        self.assertEqual(self.page.locator('#matrix-action').input_value(), 'version')
+        self.assertEqual(self.page.locator('.action-choice:visible').count(), 3)
+        self.assertFalse(self.page.locator('.action-choice').filter(has_text='Cambio').is_visible())
         self.assertEqual(self.errors, [])
 
     def test_name_is_title_case_and_code_is_uppercase(self):

@@ -72,3 +72,5 @@ En **Sitio WordPress**, el formato del nombre del documento permite elegir Title
 En **Matriz documental** puedes editar los directorios principales de Gobierno y Específicos, además del directorio de Manuales. Se normalizan a lower camel case. La opción de omitir las carpetas principales sigue afectando solo a Gobierno y Específicos, incluso con nombres personalizados; Manuales conserva siempre su carpeta. Cambiar los nombres no mueve archivos existentes.
 
 La fecha y su consecutivo se guardan también como atributos invisibles del HTML publicado, que el segundo proceso conserva. Los reintentos mantienen el nombre reservado originalmente, incluso al cambiar de día.
+
+Formulario / Web permite Alta, Cambio y Baja. Cambio publica el enlace como bloque de WordPress y registra la operación únicamente en la marca invisible `data-idpn-action="cambio"`; no sube archivos ni modifica S3 o Azure. El segundo proceso conserva esa marca al retirar Cognito y el folio visible.

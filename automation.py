@@ -85,7 +85,7 @@ def generate_gutenberg_html(site_config, page_data):
     resource_type = page_data.get('embed_type', 'document').strip()
     document_action = ((page_data.get('document_plan') or {}).get('action') or page_data.get('document_action')
                        or page_data.get('document_status') or page_data.get('action') or 'alta')
-    if document_action not in ('alta', 'version', 'baja'):
+    if document_action not in (('alta', 'cambio', 'baja') if resource_type == 'form' else ('alta', 'version', 'baja')):
         raise ValueError('Acción documental no válida.')
     if resource_type not in ('form', 'document'):
         raise ValueError('Tipo de recurso no válido.')
@@ -186,7 +186,7 @@ def get_document_metadata(page, persisted=False):
                 for (const node of doc.querySelectorAll('[data-idpn-page="1"][data-idpn-action]')) {
                     const action = node.getAttribute('data-idpn-action');
                     const resource = node.getAttribute('data-idpn-resource');
-                    if (!['alta','version','baja'].includes(action) || !['form','document'].includes(resource)) {
+                    if (!['form','document'].includes(resource) || !(resource === 'form' ? ['alta','cambio','baja'] : ['alta','version','baja']).includes(action)) {
                         throw new Error('La marca interna de la acción no es válida.');
                     }
                     const item = {action, resource};
@@ -1419,7 +1419,7 @@ def run_wp_remove_multiple_automation(config_dir, session_dir, folios, log_callb
                             
                         page_metadata = get_document_metadata(page)
                         if page_metadata:
-                            labels = {'alta':'Alta', 'version':'Nueva versión', 'baja':'Baja'}
+                            labels = {'alta':'Alta', 'version':'Nueva versión', 'cambio':'Cambio', 'baja':'Baja'}
                             log_callback(f"Acción de la página: {labels[page_metadata['action']]}", 'info')
                         else:
                             log_callback('Página sin marca interna: limpieza compatible con bloques creados manualmente.', 'info')
