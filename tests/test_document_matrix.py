@@ -225,7 +225,7 @@ class MatrixTests(unittest.TestCase):
 
     def test_alta_rejects_existing_versions(self):
         base = plan_document(self.matrix, self.data)['classification_directory']
-        with self.assertRaisesRegex(ValueError, 'Nueva versión'):
+        with self.assertRaisesRegex(ValueError, 'Cambio'):
             plan_document(self.matrix, self.data, [{'key': f'{base}/baja/PG-D-CNO-003-name-v001.pdf'}])
 
     def test_version_accepts_document_published_before_using_the_app(self):

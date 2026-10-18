@@ -264,7 +264,7 @@ def plan_document(matrix, data, inventory=None):
         result.update({'directory': f'{directory}/baja', 'version': None})
         return result
     if inventory is not None and versions and action == 'alta':
-        raise ValueError('Este código ya tiene versiones guardadas. Usa «Nueva versión».')
+        raise ValueError('Este código ya tiene versiones guardadas. Usa «Cambio».')
     name = str(data.get('name', '')).strip()
     if not name:
         raise ValueError('El nombre del documento es obligatorio.')

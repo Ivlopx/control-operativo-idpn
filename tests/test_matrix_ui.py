@@ -94,7 +94,7 @@ class MatrixUITests(unittest.TestCase):
         self.assertEqual(self.errors, [])
 
     def test_action_buttons_are_exclusive_and_keep_code_button_inline(self):
-        self.page.locator('.action-choice').filter(has_text='Nueva versión').click()
+        self.page.locator('.action-choice:visible').filter(has_text='Cambio').click()
         self.assertEqual(self.page.locator('#matrix-action').input_value(), 'version')
         self.assertEqual(self.page.locator('input[name="document-action"]:checked').count(), 1)
         self.page.locator('.action-choice').filter(has_text='Baja').click()
@@ -196,7 +196,7 @@ class MatrixUITests(unittest.TestCase):
 
     def test_form_change_has_no_file_or_classification_and_switches_cleanly(self):
         self.page.locator('.resource-choice').filter(has_text='Formulario / Web').click()
-        self.page.locator('.action-choice').filter(has_text='Cambio').click()
+        self.page.locator('.action-choice:visible').filter(has_text='Cambio').click()
         self.assertEqual(self.page.locator('#matrix-action').input_value(), 'cambio')
         self.assertEqual(self.page.locator('input[name="document-action"]:checked').count(), 1)
         self.assertFalse(self.page.locator('#matrix-file-field').is_visible())
@@ -205,7 +205,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('.resource-choice').filter(has_text='Documento').click()
         self.assertEqual(self.page.locator('#matrix-action').input_value(), 'version')
         self.assertEqual(self.page.locator('.action-choice:visible').count(), 3)
-        self.assertFalse(self.page.locator('.action-choice').filter(has_text='Cambio').is_visible())
+        self.assertTrue(self.page.locator('input[name="document-action"][value="cambio"]').evaluate('input => input.closest("label").hidden'))
         self.assertEqual(self.errors, [])
 
     def test_name_is_title_case_and_code_is_uppercase(self):

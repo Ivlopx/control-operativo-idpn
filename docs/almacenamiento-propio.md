@@ -35,7 +35,7 @@ Cambiar el directorio configura dónde buscar y guardar los archivos; no mueve o
 ## Operaciones
 
 - Alta: nombre con fecha `AAAA-MM-DD` de Ciudad de México; rechaza un documento que ya exista.
-- Nueva versión: fecha del día; si el mismo código ya tiene archivos de ese día, añade `-2`, `-3`, etc. Cuenta los archivos activos y en baja, aunque cambien el nombre o la extensión. Verifica el nuevo archivo antes de archivar los antecedentes. Los nombres anteriores con `vNNN` o sin versión siguen reconociéndose y no se renombran.
+- Cambio: fecha del día; si el mismo código ya tiene archivos de ese día, añade `-2`, `-3`, etc. Cuenta los archivos activos y en baja, aunque cambien el nombre o la extensión. Verifica el nuevo archivo antes de archivar los antecedentes. Los nombres anteriores con `vNNN` o sin versión siguen reconociéndose y no se renombran.
 - Baja, primer proceso: requiere archivo y folio, guarda el testigo directamente en baja, publica la página y deja activos los antecedentes.
 - Baja, segundo proceso: usar el folio de la página testigo. Primero confirma la limpieza de Cognito y folio en WordPress; después verifica el testigo, copia los antecedentes a baja y verifica sus bytes antes de retirar los originales. Si un antecedente es idéntico al testigo, conserva este y retira la copia activa sin generar otro duplicado.
 - Formularios Web: alta/baja solo publican en WordPress; no usan el almacenamiento. Publican encabezado, un bloque nativo `core/embed` centrado con el enlace capturado, folio y Cognito. No incrustan la página completa en un iframe ni fuerzan altura o anchura del recurso. El segundo proceso conserva el bloque del enlace y retira únicamente Cognito y folio.
@@ -75,4 +75,4 @@ La fecha y su consecutivo se guardan también como atributos invisibles del HTML
 
 Formulario / Web permite Alta, Cambio y Baja. Cambio publica el enlace como bloque de WordPress y registra la operación únicamente en la marca invisible `data-idpn-action="cambio"`; no sube archivos ni modifica S3 o Azure. El segundo proceso conserva esa marca al retirar Cognito y el folio visible.
 
-Se permite Nueva versión aunque el almacenamiento no contenga antecedentes reconocidos: sirve para documentos publicados antes de usar la aplicación. Se conserva la acción de cambio, se guarda el archivo nuevo con fecha y solo se archivan antecedentes que realmente se encuentren. No es obligatorio registrar un Alta previa.
+Se permite Cambio aunque el almacenamiento no contenga antecedentes reconocidos: sirve para documentos publicados antes de usar la aplicación. Se conserva la acción de cambio, se guarda el archivo nuevo con fecha y solo se archivan antecedentes que realmente se encuentren. No es obligatorio registrar un Alta previa.

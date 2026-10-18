@@ -1419,7 +1419,7 @@ def run_wp_remove_multiple_automation(config_dir, session_dir, folios, log_callb
                             
                         page_metadata = get_document_metadata(page)
                         if page_metadata:
-                            labels = {'alta':'Alta', 'version':'Nueva versión', 'cambio':'Cambio', 'baja':'Baja'}
+                            labels = {'alta':'Alta', 'version':'Cambio', 'cambio':'Cambio', 'baja':'Baja'}
                             log_callback(f"Acción de la página: {labels[page_metadata['action']]}", 'info')
                         else:
                             log_callback('Página sin marca interna: limpieza compatible con bloques creados manualmente.', 'info')
