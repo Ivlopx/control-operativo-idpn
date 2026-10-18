@@ -353,10 +353,25 @@
     try {
       const result = await api('/api/document-plan', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
       if (revision !== planRevision) return;
-      lastPlan = result.plan; renderResult(lastPlan);
+      lastPlan = {...result.plan, original_filename:data.filename}; renderResult(lastPlan);
     } catch(error) {if (revision === planRevision) message('matrix-plan-error', error.message, true);}
   }
   window.documentOperation = {
+    reset: () => {
+      operationId = null; lastPlan = null; operationMatrix = null; operationDomain = '';
+      operationLoad++; detectionRevision++; planRevision++;
+      clearTimeout(detectionTimer); clearTimeout(previewTimer);
+      manualClassification = false;
+      el('matrix-scope').value = 'government'; el('matrix-action').value = 'alta';
+      el('matrix-number').value = '';
+      options(el('matrix-type'), [], '');
+      renderChoices(); showClassificationFields(false);
+      el('classification-summary').textContent = '';
+      el('matrix-result').hidden = true;
+      el('matrix-result-fields').replaceChildren();
+      el('matrix-result-action').textContent = '';
+      message('matrix-plan-error', '');
+    },
     metadata: () => {
       const data = operationMetadata();
       if ((data.scope !== 'manuals' && !data.branch_id) || !data.type_id || (!data.is_politica && !data.code) || (data.scope === 'specific' && !data.area_id)) {
@@ -446,7 +461,11 @@
       crumbs.append(node('span', segment, 'plan-path-segment'));
     });
     path.append(crumbs);
-    const file = field('Archivo', undefined, 'plan-wide plan-file');
+    if (plan.original_filename) {
+      const original = field('Archivo original', undefined, 'plan-wide plan-file plan-file-original');
+      original.append(icon('form'), node('span', plan.original_filename));
+    }
+    const file = field('Archivo a subir', undefined, 'plan-wide plan-file plan-file-upload');
     file.append(icon('form'), node('span', plan.filename || plan.filename_template || 'No se sube un archivo'));
     if (plan.store_file && plan.inventory_verified) {
       field('Versiones a BAJA', String(plan.archive_operations.length), 'plan-wide plan-archive');

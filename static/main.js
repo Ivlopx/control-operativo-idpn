@@ -580,6 +580,8 @@ function appendToTerminal(message, level = 'info', time = null) {
 
 // Set up loader indicator inside terminal
 function setTerminalLoading(active) {
+  const clearButton = document.getElementById('clear-document-form');
+  if (clearButton) clearButton.disabled = active;
   const consoleBody = document.getElementById('terminal-console');
   
   // Remove existing loader
@@ -630,6 +632,20 @@ function formatDocumentNameInput() {
   input.value = normalizeDocumentName(input.value);
   documentNameState.suggested = input.value;
   return input.value;
+}
+
+function clearDocumentForm() {
+  if (document.getElementById('clear-document-form').disabled) return;
+  const form = document.getElementById('page-form-p1');
+  form.reset();
+  document.getElementById('site-select-p1').value = '';
+  documentNameState.suggested = null;
+  documentNameState.manual = false;
+  window.documentOperation.reset();
+  const resource = document.querySelector('input[name="input-embed-type-p1"][value="document"]');
+  resource.dispatchEvent(new Event('change', {bubbles:true}));
+  clearFormAlerts('create');
+  document.getElementById('input-folio-p1').focus();
 }
 
 // Run the Playwright Automation Task
