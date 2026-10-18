@@ -183,7 +183,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#input-nombre-p1').fill('Política de calidad')
         self.page.locator('#matrix-file').set_input_files({'name':'original.pdf','mimeType':'application/pdf','buffer':b'%PDF test'})
         self.page.locator('#matrix-result').wait_for(state='visible')
-        self.assertIn('/administracion/recursosHumanos/politicas', self.page.locator('#matrix-result').inner_text())
+        self.assertIn('/administracion/recursosHumanos/politicas', self.page.locator('.plan-path').text_content())
         self.assertIn(f'politica-de-calidad-{publication_day()}.pdf', self.page.locator('#matrix-result').inner_text())
         metadata = self.page.evaluate('window.documentOperation.metadata()')
         self.assertEqual(metadata['code'], '')
@@ -547,7 +547,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#input-nombre-p1').fill('Manual del sistema')
         self.page.locator('#matrix-file').set_input_files({'name':'manual.pdf','mimeType':'application/pdf','buffer':b'%PDF test'})
         self.page.locator('#matrix-result').wait_for(state='visible')
-        self.assertIn('zhipos/manualesDelSistemaDeGestion', self.page.locator('#matrix-result').inner_text())
+        self.assertIn('zhipos/manualesDelSistemaDeGestion', self.page.locator('.plan-path').text_content())
         metadata = self.page.evaluate('window.documentOperation.metadata()')
         self.assertEqual(metadata['scope'], 'manuals')
         self.assertEqual(metadata['type_id'], 'manual')
@@ -573,7 +573,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#input-nombre-p1').fill('Manual corporativo')
         self.page.locator('#matrix-file').set_input_files({'name':'manual.pdf','mimeType':'application/pdf','buffer':b'%PDF test'})
         self.page.locator('#matrix-result').wait_for(state='visible')
-        self.assertIn('zhipos/manualesCorporativos', self.page.locator('#matrix-result').inner_text())
+        self.assertIn('zhipos/manualesCorporativos', self.page.locator('.plan-path').text_content())
         self.assertEqual(self.errors, [])
 
     def test_main_scope_directory_names_can_be_configured_per_company(self):
@@ -603,6 +603,40 @@ class MatrixUITests(unittest.TestCase):
         self.page.screenshot(path='/private/tmp/idpn-matrix-preview.png')
         self.assertEqual(self.page.locator('#input-codigo-p1').input_value(), 'PG-D-CNO-003')
         self.assertEqual(self.page.locator('#site-select-p1').input_value(), 'zhipos-idpn.net')
+        self.assertEqual(self.errors, [])
+
+    def test_publication_summary_wraps_long_names_on_desktop_and_mobile(self):
+        filename = 'IE-C-VTS-001-instructivo-para-la-recepcion-atencion-y-canalizacion-de-solicitudes-de-cotizacion-2026-10-18.docx'
+        plan = {'code':'IE-C-VTS-001', 'action':'version', 'store_file':True,
+                'storage':{'provider':'s3', 'target':'ufara-idpn.net-archivos'},
+                'directory':'comercial/ventas/instructivos', 'filename':filename, 'version':'2026-10-18',
+                'inventory_verified':True, 'archive_operations':[]}
+        self.page.route('**/api/document-plan', lambda route: route.fulfill(json={'plan':plan}))
+        self.file_and_number()
+        self.page.locator('#matrix-result').wait_for(state='visible')
+        self.assertEqual(self.page.locator('#matrix-result-action').inner_text(), 'Cambio')
+        self.assertEqual(self.page.locator('.plan-service dd').inner_text(), 'Amazon S3')
+        self.assertEqual(self.page.locator('.plan-file dd span').inner_text(), filename)
+        self.assertEqual(self.page.locator('.plan-path').text_content(), 'comercial/ventas/instructivos')
+        for width in (1440, 390):
+            self.page.set_viewport_size({'width':width, 'height':1100})
+            summary = self.page.locator('#matrix-result')
+            summary.scroll_into_view_if_needed()
+            self.assertFalse(summary.evaluate('el => el.scrollWidth > el.clientWidth'))
+            self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+            columns = self.page.locator('#matrix-result-fields').evaluate('el => getComputedStyle(el).gridTemplateColumns.split(" ").length')
+            self.assertEqual(columns, 2 if width == 1440 else 1)
+            # Inspect the component without dashboard panels occluding its screenshot.
+            preview = self.browser.new_page(viewport={'width':width, 'height':1100})
+            try:
+                preview.route('**/*', lambda route: route.abort())
+                css = (ROOT/'static/style.css').read_text() + (ROOT/'static/dopyme-theme.css').read_text()
+                icons = self.page.locator('.icon-library').evaluate('el => el.outerHTML')
+                preview.set_content('<style>' + css + '</style>' + icons +
+                    '<main style="padding:16px;max-width:736px;margin:auto">' + summary.evaluate('el => el.outerHTML') + '</main>')
+                preview.locator('#matrix-result').screenshot(path=f'/private/tmp/idpn-publication-summary-{width}.png')
+            finally:
+                preview.close()
         self.assertEqual(self.errors, [])
 
     def test_specific_formulario_uses_code_without_file(self):

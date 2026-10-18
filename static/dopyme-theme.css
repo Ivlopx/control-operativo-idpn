@@ -619,3 +619,35 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-color);
 
 .legacy-directory-toggle {grid-column:1/-1; margin:6px 0 0; align-items:center;}
 .legacy-directory-toggle > span:last-child {min-width:0; line-height:1.5;}
+
+/* Publication summary: compact metadata, readable paths and full file names. */
+.matrix-result {padding:0; border:1px solid #d9e2e8; border-radius:14px; background:#fff; overflow:hidden;}
+.plan-summary-header {display:flex; align-items:center; gap:10px; padding:15px 18px; background:#f3f6f8; border-bottom:1px solid #e3e9ed;}
+.plan-summary-icon {display:flex; padding:8px; border-radius:9px; background:#e4ebf0; color:var(--accent-color);}
+.plan-summary-header h3 {margin:0; font:700 14px/1.4 var(--font-heading); color:var(--accent-color);}
+.plan-action-badge {margin-left:auto; flex-shrink:0; padding:5px 10px; border-radius:20px; background:#e4edf5; color:#173b57; font-size:11px; font-weight:700;}
+.plan-action-badge[data-action="alta"] {background:#e7f2eb; color:#306045;}
+.plan-action-badge[data-action="baja"] {background:#faeee7; color:#965333;}
+.plan-summary-grid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 22px; margin:0; padding:18px;}
+.plan-summary-field {min-width:0;}
+.matrix-result dt {margin:0 0 6px; font-size:11px; line-height:1.4; font-weight:600; color:var(--text-secondary);}
+.matrix-result dd {margin:0; font:500 13px/1.55 var(--font-sans); color:var(--accent-color); overflow-wrap:anywhere;}
+.plan-code dd {font-size:16px; font-weight:700; letter-spacing:.015em;}
+.plan-service dd {display:flex; align-items:center; gap:7px;}
+.plan-service .ui-icon {width:18px; height:18px; flex-shrink:0;}
+.plan-wide {grid-column:1/-1;}
+.plan-path {display:flex; align-items:center; flex-wrap:wrap; gap:5px;}
+.plan-path-segment {max-width:100%; border-radius:5px; padding:3px 7px; background:#eef3f6; overflow-wrap:anywhere;}
+.plan-path-separator {color:#8b99a5; font-size:12px;}
+.plan-file {padding:12px; border:1px solid #e3e9ed; border-radius:9px; background:#f8fafb;}
+.plan-file dd {display:flex; align-items:flex-start; gap:9px; font-size:12px;}
+.plan-file dd span {min-width:0;}
+.plan-file .ui-icon {width:19px; height:19px; flex-shrink:0; margin-top:1px; color:#657e91;}
+.plan-archive {display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:12px; border-top:1px solid #e3e9ed;}
+.plan-archive dt {margin:0;}
+.plan-archive dd {padding:2px 9px; background:#eef3f6; border-radius:6px; font-size:12px; font-weight:700;}
+@media(max-width:600px) {
+  .plan-summary-grid {grid-template-columns:minmax(0,1fr); gap:15px; padding:15px;}
+  .plan-summary-header {padding:13px 15px; gap:8px;}
+  .plan-summary-header h3 {font-size:13px;}
+}

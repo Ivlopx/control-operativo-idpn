@@ -105,7 +105,14 @@
               <div id="matrix-file-field" class="form-group"><label for="matrix-file">Documento</label><input id="matrix-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" required></div>
               {% include 'document_classification.html' %}
               <div id="matrix-plan-error" class="matrix-message matrix-error" role="alert" hidden></div>
-              <div id="matrix-result" class="matrix-result" hidden><dl id="matrix-result-fields"></dl></div>
+              <section id="matrix-result" class="matrix-result" aria-labelledby="matrix-result-title" hidden>
+                <div class="plan-summary-header">
+                  <span class="plan-summary-icon"><svg class="ui-icon" aria-hidden="true"><use href="#icon-form"></use></svg></span>
+                  <h3 id="matrix-result-title">Resumen de publicación</h3>
+                  <span id="matrix-result-action" class="plan-action-badge"></span>
+                </div>
+                <dl id="matrix-result-fields" class="plan-summary-grid"></dl>
+              </section>
 
             </form>
           </div>

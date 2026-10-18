@@ -415,13 +415,42 @@
   }
   function renderResult(plan) {
     const result = el('matrix-result-fields'); result.replaceChildren();
-    const rows = [['Código', plan.is_politica ? 'No aplica (política)' : plan.code], ['Servicio', plan.store_file ? (plan.storage.provider || 'Pendiente') : 'WordPress'],
-      ['Bucket / contenedor', plan.store_file ? (plan.storage.target || 'Pendiente') : 'No aplica'],
-      ['Directorio', plan.directory || (plan.store_file ? plan.classification_directory : 'No se almacena')],
-      ['Fecha del archivo', !plan.store_file || (plan.action === 'baja' && !plan.filename && !plan.filename_template) ? 'No aplica' : (plan.version || 'Pendiente de consultar el inventario')],
-      ['Archivo', plan.filename || plan.filename_template || 'No se sube un archivo']];
-    if (plan.store_file && plan.inventory_verified) rows.push(['Versiones a BAJA', String(plan.archive_operations.length)]);
-    rows.forEach(([label, value]) => result.append(node('dt', label), node('dd', value)));
+    const icon = name => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'ui-icon'); svg.setAttribute('aria-hidden', 'true');
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', `#icon-${name}`); svg.append(use); return svg;
+    };
+    const badge = el('matrix-result-action');
+    badge.textContent = {alta:'Alta', version:'Cambio', cambio:'Cambio', baja:'Baja'}[plan.action] || 'Alta';
+    badge.dataset.action = plan.action;
+    const field = (label, value, className = '') => {
+      const item = node('div', undefined, `plan-summary-field ${className}`);
+      const content = node('dd', value);
+      item.append(node('dt', label), content); result.append(item); return content;
+    };
+    field('Código', plan.is_politica ? 'No aplica (política)' : plan.code, 'plan-code');
+    field('Fecha del archivo', !plan.store_file || (plan.action === 'baja' && !plan.filename && !plan.filename_template)
+      ? 'No aplica' : (plan.version || 'Se confirma al subir'));
+    const provider = plan.store_file ? plan.storage.provider : 'wordpress';
+    const service = field('Servicio', {s3:'Amazon S3', azure:'Azure Blob Storage', wordpress:'WordPress'}[provider] || 'Pendiente', 'plan-service');
+    service.prepend(icon(['s3','azure'].includes(provider) ? provider : 'database'));
+    field(provider === 'azure' ? 'Contenedor' : provider === 's3' ? 'Bucket' : 'Bucket / contenedor',
+      plan.store_file ? (plan.storage.target || 'Pendiente') : 'No aplica');
+    const directory = plan.directory || (plan.store_file ? plan.classification_directory : 'No se almacena');
+    const path = field('Directorio', undefined, 'plan-wide plan-directory');
+    const crumbs = node('div', undefined, 'plan-path');
+    crumbs.title = String(directory || 'Pendiente');
+    String(directory || 'Pendiente').split('/').forEach((segment, index) => {
+      if (index) {const separator = node('span', '/', 'plan-path-separator'); separator.setAttribute('aria-hidden', 'true'); crumbs.append(separator);}
+      crumbs.append(node('span', segment, 'plan-path-segment'));
+    });
+    path.append(crumbs);
+    const file = field('Archivo', undefined, 'plan-wide plan-file');
+    file.append(icon('form'), node('span', plan.filename || plan.filename_template || 'No se sube un archivo'));
+    if (plan.store_file && plan.inventory_verified) {
+      field('Versiones a BAJA', String(plan.archive_operations.length), 'plan-wide plan-archive');
+    }
     el('matrix-result').hidden = false;
   }
   document.addEventListener('idpn:company-selected', event => {
