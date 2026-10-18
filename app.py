@@ -137,7 +137,7 @@ def run_in_background(config_data, session_file, page_data):
                     page_data['document_status'] = 'baja'
                     page_data['nombre'] = page_data.get('nombre') or stored.get('name') or stored['filename']
                     log_callback('Publicando el registro de baja con la última versión archivada...', 'info')
-                page_data.update(enlace=stored['url'], download_url=stored['download_url'], filename=stored['filename'])
+                page_data.update(enlace=stored['url'], download_url=stored['download_url'], filename=stored['filename'], storage_version=stored.get('version', ''))
             automation_result = run_wp_automation(
                 config_data, session_file, page_data, log_callback,
                 frame_callback=frame_cb, event_queue=browser_event_queue

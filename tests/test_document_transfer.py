@@ -105,12 +105,12 @@ class TransferTests(unittest.TestCase):
         self.assertEqual(page_data['codigo'], '')
         self.assertTrue(plan['is_politica'])
         self.assertTrue(plan['classification_directory'].endswith('/recursosHumanos/politicas'))
-        result = {'success':True,'operation_id':page_data['operation_id'],'code':'','action':'alta','version':'v001',
-                  'filename':'politica-de-calidad-v001.pdf', 'key':plan['classification_directory']+'/politica-de-calidad-v001.pdf',
+        result = {'success':True,'operation_id':page_data['operation_id'],'code':'','action':'alta','version':'2026-10-18',
+                  'filename':'politica-de-calidad-2026-10-18.pdf', 'key':plan['classification_directory']+'/politica-de-calidad-2026-10-18.pdf',
                   'url':'https://files.test/politica.pdf', 'download_url':'https://files.test/download'}
         with application.app.app_context(), patch('storage_engine.execute_storage', return_value=result) as remote:
             stored = transfer_document(plan, page_data['operation_id'], page_data['temporary_file'])
-            self.assertEqual(stored['filename'], 'politica-de-calidad-v001.pdf')
+            self.assertEqual(stored['filename'], 'politica-de-calidad-2026-10-18.pdf')
 
     def test_server_normalizes_code_and_name(self):
         payload = self.payload(); payload.update(codigo='fe-a-rhs-003', nombre='GESTIÓN_de-calidad Y revisión')

@@ -34,8 +34,8 @@ Cambiar el directorio configura dónde buscar y guardar los archivos; no mueve o
 
 ## Operaciones
 
-- Alta: primera versión `v001`; rechaza un documento que ya exista.
-- Nueva versión: máximo de las versiones activas y baja + 1; verifica el nuevo archivo antes de archivar las versiones activas.
+- Alta: nombre con fecha `AAAA-MM-DD` de Ciudad de México; rechaza un documento que ya exista.
+- Nueva versión: fecha del día; si el mismo código ya tiene archivos de ese día, añade `-2`, `-3`, etc. Cuenta los archivos activos y en baja, aunque cambien el nombre o la extensión. Verifica el nuevo archivo antes de archivar los antecedentes. Los nombres anteriores con `vNNN` o sin versión siguen reconociéndose y no se renombran.
 - Baja, primer proceso: requiere archivo y folio, guarda el testigo directamente en baja, publica la página y deja activos los antecedentes.
 - Baja, segundo proceso: usar el folio de la página testigo. Primero confirma la limpieza de Cognito y folio en WordPress; después verifica el testigo, copia los antecedentes a baja y verifica sus bytes antes de retirar los originales. Si un antecedente es idéntico al testigo, conserva este y retira la copia activa sin generar otro duplicado.
 - Formularios Web: alta/baja solo publican en WordPress; no usan el almacenamiento. Publican encabezado, un bloque nativo `core/embed` centrado con el enlace capturado, folio y Cognito. No incrustan la página completa en un iframe ni fuerzan altura o anchura del recurso. El segundo proceso conserva el bloque del enlace y retira únicamente Cognito y folio.
@@ -70,3 +70,5 @@ Los directorios se normalizan a lowerCamelCase, sin acentos ni espacios: `proced
 En **Sitio WordPress**, el formato del nombre del documento permite elegir Title Case, UPPER CASE o lower case. Title Case conserva los conectores internos en minúsculas (por ejemplo, «Gestión del Almacén y/o Control por Área»); la primera palabra comienza con mayúscula. La diagonal se conserva en los títulos. El código sigue en mayúsculas. El ajuste se aplica a las nuevas publicaciones, sin reescribir páginas existentes.
 
 En **Matriz documental** puedes editar los directorios principales de Gobierno y Específicos, además del directorio de Manuales. Se normalizan a lower camel case. La opción de omitir las carpetas principales sigue afectando solo a Gobierno y Específicos, incluso con nombres personalizados; Manuales conserva siempre su carpeta. Cambiar los nombres no mueve archivos existentes.
+
+La fecha y su consecutivo se guardan también como atributos invisibles del HTML publicado, que el segundo proceso conserva. Los reintentos mantienen el nombre reservado originalmente, incluso al cambiar de día.

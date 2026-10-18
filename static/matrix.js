@@ -416,7 +416,7 @@
     const rows = [['Código', plan.is_politica ? 'No aplica (política)' : plan.code], ['Servicio', plan.store_file ? (plan.storage.provider || 'Pendiente') : 'WordPress'],
       ['Bucket / contenedor', plan.store_file ? (plan.storage.target || 'Pendiente') : 'No aplica'],
       ['Directorio', plan.directory || (plan.store_file ? plan.classification_directory : 'No se almacena')],
-      ['Versión', !plan.store_file || (plan.action === 'baja' && !plan.filename && !plan.filename_template) ? 'No aplica' : (plan.version || 'Pendiente de consultar el inventario')],
+      ['Fecha del archivo', !plan.store_file || (plan.action === 'baja' && !plan.filename && !plan.filename_template) ? 'No aplica' : (plan.version || 'Pendiente de consultar el inventario')],
       ['Archivo', plan.filename || plan.filename_template || 'No se sube un archivo']];
     if (plan.store_file && plan.inventory_verified) rows.push(['Versiones a BAJA', String(plan.archive_operations.length)]);
     rows.forEach(([label, value]) => result.append(node('dt', label), node('dd', value)));

@@ -302,6 +302,21 @@ class CleanupTests(unittest.TestCase):
                 if resource == 'form':
                     self.assertEqual(self.page.evaluate('current.filter(block => block.name === "core/embed").length'), 1)
 
+    def test_file_date_stamp_is_invisible_and_preserved_after_cleanup(self):
+        for stamp in ('2026-10-18', '2026-10-18-2', 'v017'):
+            html = generate_gutenberg_html({'cognito_script':'<script src="https://www.cognitoforms.com/f/seamless.js"></script>'},
+                {'codigo':'PE-A-001', 'nombre':'Documento', 'folio':'COD123', 'enlace':'https://files.test/document.docx',
+                 'filename':'document.docx', 'storage_version':stamp, 'document_action':'baja'})
+            self.page.set_content(html)
+            self.assertNotIn(stamp, self.page.locator('body').inner_text())
+            self.setup_editor([block('core/html', html)])
+            expected = {'action':'baja', 'resource':'document', 'revision':stamp}
+            if not stamp.startswith('v'):
+                expected['published_date'] = '2026-10-18'
+            self.assertEqual(get_document_metadata(self.page), expected)
+            remove_cognito_and_folio(self.page, lambda *args: None)
+            self.assertEqual(get_document_metadata(self.page, persisted=True), expected)
+
     def test_conflicting_internal_actions_are_rejected(self):
         self.setup_editor([block('core/html', '<section data-idpn-page="1" data-idpn-action="alta" data-idpn-resource="document"></section><section data-idpn-page="1" data-idpn-action="baja" data-idpn-resource="document"></section>')])
         with self.assertRaisesRegex(Exception, 'contradictorias'):

@@ -26,6 +26,9 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(validate_matrix(normalized), normalized)
 
     def setUp(self):
+        for target in ('document_stamp.publication_day', 'document_matrix.publication_day'):
+            day_patch = patch(target, return_value='2026-10-18')
+            day_patch.start(); self.addCleanup(day_patch.stop)
         self.matrix = validate_matrix(default_matrix('ZHIPOS', zhipos=True))
         self.data = {'action': 'alta', 'scope': 'government', 'branch_id': 'control-de-no-conformes',
                      'type_id': 'procedimiento', 'number': '003', 'name': 'Control de no conformes', 'filename': 'original.PDF'}
@@ -37,7 +40,7 @@ class MatrixTests(unittest.TestCase):
         self.assertEqual(government['classification_directory'], 'controlDeNoConformes/procedimientos')
         previous = government['classification_directory'] + '/PG-D-CNO-003-anterior-v003.pdf'
         version = plan_document(self.matrix, {**self.data, 'action':'version'}, [{'key':previous}])
-        self.assertEqual(version['version'], 'v004')
+        self.assertEqual(version['version'], '2026-10-18')
         self.assertEqual(version['archive_operations'][0]['destination_key'], government['classification_directory']+'/baja/PG-D-CNO-003-anterior-v003.pdf')
         specific = {**self.data, 'scope':'specific', 'branch_id':'administracion', 'area_id':'recursos-humanos', 'type_id':'formato'}
         planned = plan_document(self.matrix, specific, [])
@@ -59,9 +62,9 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(planned['type_id'], 'manual')
             self.assertIsNone(planned['branch_id'])
             self.assertEqual(planned['code'], 'MG-003')
-            self.assertEqual(planned['version'], 'v001')
+            self.assertEqual(planned['version'], '2026-10-18')
             next_version = plan_document(self.matrix, {**data, 'action':'version'}, [{'key':planned['key']}])
-            self.assertEqual(next_version['version'], 'v002')
+            self.assertEqual(next_version['version'], '2026-10-18-2')
             baja = plan_document(self.matrix, {**data,'action':'baja'}, [])
             self.assertIn('/manualesDelSistemaDeGestion/baja/', baja['key'])
         self.matrix['storage']['root'] = ''
@@ -102,7 +105,7 @@ class MatrixTests(unittest.TestCase):
     def test_baja_can_upload_reference_when_no_document_exists(self):
         self.data.update(action='baja')
         plan = plan_document(self.matrix, self.data, [])
-        self.assertEqual(plan['version'], 'v001')
+        self.assertEqual(plan['version'], '2026-10-18')
         self.assertIn('/baja/', plan['key'])
         self.assertEqual(plan['archive_operations'], [])
 
@@ -112,19 +115,19 @@ class MatrixTests(unittest.TestCase):
         plan = plan_document(self.matrix, data, [])
         self.assertEqual(plan['code'], '')
         self.assertTrue(plan['classification_directory'].endswith('/administracion/recursosHumanos/politicas'))
-        self.assertEqual(plan['filename'], 'politica-de-calidad-v001.pdf')
+        self.assertEqual(plan['filename'], 'politica-de-calidad-2026-10-18.pdf')
         data['action'] = 'version'
         inventory = [{'key':plan['classification_directory']+'/baja/politica-de-calidad-v001.pdf'},
                      {'key':plan['classification_directory']+'/politica-de-calidad-v002.pdf'},
                      {'key':plan['classification_directory']+'/politica-ambiental-v009.pdf'}]
         next_plan = plan_document(self.matrix, data, inventory)
-        self.assertEqual(next_plan['version'], 'v003')
+        self.assertEqual(next_plan['version'], '2026-10-18')
         self.assertEqual(len(next_plan['archive_operations']), 1)
 
     def test_government_first_version(self):
         plan = plan_document(self.matrix, self.data, inventory=[])
         self.assertEqual(plan['code'], 'PG-D-CNO-003')
-        self.assertEqual(plan['filename'], 'PG-D-CNO-003-control-de-no-conformes-v001.pdf')
+        self.assertEqual(plan['filename'], 'PG-D-CNO-003-control-de-no-conformes-2026-10-18.pdf')
         self.assertEqual(plan['key'], 'zhipos/procedimientosDeGobierno/controlDeNoConformes/procedimientos/' + plan['filename'])
 
     def test_specific_human_resources(self):
@@ -170,7 +173,7 @@ class MatrixTests(unittest.TestCase):
         plan = plan_document(self.matrix, self.data)
         self.assertIsNone(plan['version'])
         self.assertFalse(plan['inventory_verified'])
-        self.assertIn('-vNNN.pdf', plan['filename_template'])
+        self.assertIn('-2026-10-18.pdf', plan['filename_template'])
 
     def test_user_code_is_preserved_when_classification_is_corrected(self):
         self.data.update(code='FE-A-RHS-009',branch_id='control-de-documentos')
@@ -190,22 +193,33 @@ class MatrixTests(unittest.TestCase):
                      {'key': f'{base}/baja/PG-D-CNO-003-otro-nombre-v007.xlsx'},
                      {'key': f'{base}/PG-D-CNO-003-otro-nombre-v003.docx', 'etag': 'e3'}]
         plan = plan_document(self.matrix, self.data, inventory)
-        self.assertEqual(plan['version'], 'v008')
+        self.assertEqual(plan['version'], '2026-10-18')
         self.assertEqual(len(plan['archive_operations']), 2)
         self.assertTrue(plan['archive_after_upload'])
         self.assertFalse(plan['overwrite'])
         self.assertEqual(plan['archive_operations'][0]['source_etag'], 'e1')
         self.assertIn('/baja/', plan['archive_operations'][0]['destination_key'])
 
+    def test_date_suffix_counts_archived_files_and_other_names_for_same_code(self):
+        base = plan_document(self.matrix, self.data)['classification_directory']
+        self.data['action'] = 'version'
+        inventory = [{'key': base + '/PG-D-CNO-003-anterior-v017.pdf'},
+                     {'key': base + '/baja/PG-D-CNO-003-otro-2026-10-18-9.xlsx'},
+                     {'key': base + '/PG-D-CNO-0030-otro-2026-10-18-99.pdf'}]
+        plan = plan_document(self.matrix, self.data, inventory)
+        self.assertEqual(plan['version'], '2026-10-18-10')
+        self.assertTrue(plan['filename'].endswith('-2026-10-18-10.pdf'))
+        self.assertEqual(len(plan['archive_operations']), 1)
+
     def test_manual_version_field_cannot_override_calculation(self):
         self.data['version'] = 'v999'
-        self.assertEqual(plan_document(self.matrix, self.data, [])['version'], 'v001')
+        self.assertEqual(plan_document(self.matrix, self.data, [])['version'], '2026-10-18')
 
     def test_legacy_unversioned_file_is_preserved_in_baja(self):
         self.data['action'] = 'version'
         base = plan_document(self.matrix, self.data)['classification_directory']
         plan = plan_document(self.matrix, self.data, [{'key': f'{base}/PG-D-CNO-003-documento.pdf'}])
-        self.assertEqual(plan['version'], 'v001')
+        self.assertEqual(plan['version'], '2026-10-18')
         self.assertEqual(len(plan['archive_operations']), 1)
         self.assertTrue(plan['stored_versions'][0]['legacy'])
 
@@ -238,7 +252,7 @@ class MatrixTests(unittest.TestCase):
         plan = plan_document(self.matrix, self.data, [{'key': f'{base}/PG-D-CNO-0030-file-v900.pdf'},
                      {'key': f'{base}/otra-area/PG-D-CNO-003-file-v900.pdf'},
                      {'key': f'otro/{base}/PG-D-CNO-003-file-v900.pdf'}])
-        self.assertEqual(plan['version'], 'v001')
+        self.assertEqual(plan['version'], '2026-10-18')
 
     def test_areas_can_override_process_storage(self):
         self.matrix['storage'] = {'provider': 's3', 'target': 'company-files', 'root': 'zhipos'}
@@ -333,7 +347,7 @@ class MatrixAPITests(unittest.TestCase):
             remote.return_value = {'success':True,'complete':True,'files':[]}
             plan = self.client.post('/api/document-plan', json=self.data).get_json()['plan']
             sent = remote.call_args.args[0]
-        self.assertEqual(plan['version'], 'v001')
+        self.assertEqual(plan['version'], '2026-10-18')
         self.assertEqual(sent['operation'], 'inventory')
         self.assertTrue(sent['include_baja'])
 

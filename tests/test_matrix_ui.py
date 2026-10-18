@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from document_matrix import default_matrix, validate_matrix
 from matrix_api import matrix_api
+from document_stamp import publication_day
 
 
 class MatrixUITests(unittest.TestCase):
@@ -183,7 +184,7 @@ class MatrixUITests(unittest.TestCase):
         self.page.locator('#matrix-file').set_input_files({'name':'original.pdf','mimeType':'application/pdf','buffer':b'%PDF test'})
         self.page.locator('#matrix-result').wait_for(state='visible')
         self.assertIn('/administracion/recursosHumanos/politicas', self.page.locator('#matrix-result').inner_text())
-        self.assertIn('politica-de-calidad-vNNN.pdf', self.page.locator('#matrix-result').inner_text())
+        self.assertIn(f'politica-de-calidad-{publication_day()}.pdf', self.page.locator('#matrix-result').inner_text())
         metadata = self.page.evaluate('window.documentOperation.metadata()')
         self.assertEqual(metadata['code'], '')
         self.assertEqual(metadata['type_id'], 'politica')
@@ -584,7 +585,7 @@ class MatrixUITests(unittest.TestCase):
         self.file_and_number()
         self.page.locator('#matrix-result').wait_for(state='visible')
         self.assertIn('PG-D-CNO-003', self.page.locator('#matrix-result').inner_text())
-        self.assertIn('vNNN.pdf', self.page.locator('#matrix-result').inner_text())
+        self.assertIn(f'{publication_day()}.pdf', self.page.locator('#matrix-result').inner_text())
         self.page.screenshot(path='/private/tmp/idpn-matrix-preview.png')
         self.assertEqual(self.page.locator('#input-codigo-p1').input_value(), 'PG-D-CNO-003')
         self.assertEqual(self.page.locator('#site-select-p1').input_value(), 'zhipos-idpn.net')

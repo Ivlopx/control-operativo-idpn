@@ -3,6 +3,7 @@ from copy import deepcopy
 import re
 import unicodedata
 from pathlib import PurePosixPath
+from document_stamp import STAMP_SUFFIX, next_stamp, publication_day, stamp_from_filename, stamp_sort_key
 
 
 TYPES = [
@@ -234,7 +235,7 @@ def plan_document(matrix, data, inventory=None):
             raise ValueError('Inventario de almacenamiento inválido.')
         identity = re.escape(slug(policy_name)) if policy else re.escape(code) + r'-.+'
         pattern = re.compile(r'^' + identity + r'-v([0-9]{3,})\.(?:pdf|docx?|xlsx?|pptx?)$', re.I)
-        legacy_pattern = re.compile(r'^' + identity + r'\.(?:pdf|docx?|xlsx?|pptx?)$', re.I)
+        legacy_pattern = re.compile(r'^' + identity + (STAMP_SUFFIX if policy else '') + r'\.(?:pdf|docx?|xlsx?|pptx?)$', re.I)
         for item in inventory:
             if not isinstance(item, dict) or not isinstance(item.get('key'), str):
                 raise ValueError('El inventario debe contener objetos con key.')
@@ -247,12 +248,12 @@ def plan_document(matrix, data, inventory=None):
             basename = PurePosixPath(relative).name
             match = pattern.fullmatch(basename)
             if match or legacy_pattern.fullmatch(basename):
-                versions.append({'key': key, 'version': int(match.group(1)) if match else 0, 'legacy': not bool(match), 'archived': relative.startswith('baja/'),
+                versions.append({'key': key, 'version': stamp_from_filename(basename) or 0, 'legacy': stamp_from_filename(basename) is None, 'archived': relative.startswith('baja/'),
                                  'etag': item.get('etag')})
     active = [item for item in versions if not item['archived']]
     archive_operations = [{'source_key': item['key'], 'destination_key': f'{directory}/baja/{PurePosixPath(item["key"]).name}',
                            'source_etag': item['etag']} for item in active]
-    result.update({'stored_versions': sorted(versions, key=lambda item: item['version']),
+    result.update({'stored_versions': sorted(versions, key=lambda item: stamp_sort_key(item['key'])),
                    'archive_operations': archive_operations if action in ('version', 'baja') else [],
                    'overwrite': False, 'preserve_previous_versions': True,
                    'archive_after_upload': action == 'version', 'archive_after_second_process': action == 'baja'})
@@ -275,9 +276,9 @@ def plan_document(matrix, data, inventory=None):
         raise ValueError('Selecciona un archivo PDF, Word, Excel o PowerPoint.')
     if inventory is None:
         result.update({'name': name, 'directory': directory + ('/baja' if action == 'baja' else ''), 'version': None,
-                       'filename_template': f'{(code+"-") if code else ""}{slug(name)}-vNNN{ext}'})
+                       'filename_template': f'{(code+"-") if code else ""}{slug(name)}-{publication_day()}{ext}'})
         return result
-    version = f'v{max((item["version"] for item in versions), default=0) + 1:03d}'
+    version = next_stamp(versions)
     filename = f'{(code+"-") if code else ""}{slug(name)}-{version}{ext}'
     active_key = f'{directory}/{filename}'
     archive_key = f'{directory}/baja/{filename}'

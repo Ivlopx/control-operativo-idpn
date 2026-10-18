@@ -65,6 +65,8 @@ class MemoryStorage:
 
 class NativeLifecycleTests(unittest.TestCase):
     def setUp(self):
+        day_patch = patch('document_stamp.publication_day', return_value='2026-10-18')
+        day_patch.start(); self.addCleanup(day_patch.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.app = Flask(__name__)
@@ -90,7 +92,7 @@ class NativeLifecycleTests(unittest.TestCase):
         first = self.run_op()
         again = self.run_op()
         self.assertEqual(first, again)
-        self.assertEqual(first['version'], 'v001')
+        self.assertEqual(first['version'], '2026-10-18')
         self.assertEqual(len(self.active_keys()), 1)
         self.assertEqual(first['download_url'], first['url'])
 
@@ -99,7 +101,7 @@ class NativeLifecycleTests(unittest.TestCase):
         first = self.run_op()
         self.file.write_bytes(b'new-manual')
         current = self.run_op(action='version', operation_id='operation-2234567890')
-        self.assertEqual(current['version'], 'v002')
+        self.assertEqual(current['version'], '2026-10-18-2')
         witness = self.run_op(action='baja', defer_archive=True, operation_id='operation-3234567890')
         self.assertIn(current['key'], self.cloud.objects)
         reference = {key:witness[key] for key in ['key','sha256','size','version']}
@@ -112,7 +114,7 @@ class NativeLifecycleTests(unittest.TestCase):
     def test_version_moves_original_only_after_verified_upload(self):
         first = self.run_op(); self.file.write_bytes(b'new')
         second = self.run_op(action='version', operation_id='operation-2234567890')
-        self.assertEqual(second['version'], 'v002')
+        self.assertEqual(second['version'], '2026-10-18-2')
         self.assertNotIn(first['key'], self.cloud.objects)
         self.assertEqual(self.cloud.get(second['archived'][0]['key'])[0], b'original')
 
@@ -152,7 +154,7 @@ class NativeLifecycleTests(unittest.TestCase):
         self.assertIn(first['key'], self.cloud.objects)
         self.cloud.fail_archive = False
         result = self.run_op(action='version', operation_id='operation-2234567890')
-        self.assertEqual(result['version'], 'v002')
+        self.assertEqual(result['version'], '2026-10-18-2')
         self.assertEqual(len(self.active_keys()), 1)
 
     def test_failed_delete_resumes_without_overwriting_archive(self):
@@ -160,7 +162,7 @@ class NativeLifecycleTests(unittest.TestCase):
         with self.assertRaises(StorageError): self.run_op(action='version', operation_id='operation-2234567890')
         self.assertIn(first['key'], self.cloud.objects)
         self.cloud.fail_delete = False
-        self.assertEqual(self.run_op(action='version', operation_id='operation-2234567890')['version'], 'v002')
+        self.assertEqual(self.run_op(action='version', operation_id='operation-2234567890')['version'], '2026-10-18-2')
         self.assertNotIn(first['key'], self.cloud.objects)
 
     def test_checksum_failure_preserves_source(self):
@@ -176,8 +178,35 @@ class NativeLifecycleTests(unittest.TestCase):
     def test_policy_versions_are_independent_and_use_no_code(self):
         first = self.run_op(code='', name='Política de Calidad', is_politica=True)
         second = self.run_op(code='', name='Política Comercial', is_politica=True, operation_id='operation-2234567890')
-        self.assertEqual((first['version'], second['version']), ('v001','v001'))
+        self.assertEqual((first['version'], second['version']), ('2026-10-18','2026-10-18'))
         self.assertTrue(first['filename'].startswith('politica-de-calidad-'))
+
+    def test_date_counter_spans_names_extensions_archives_and_resets_next_day(self):
+        first = self.run_op()
+        self.file = self.root / 'test.docx'; self.file.write_bytes(b'changed')
+        second = self.run_op(action='version', name='Nombre Cambiado', operation_id='operation-2234567890')
+        third = self.run_op(action='baja', defer_archive=True, name='Otro Nombre', operation_id='operation-3234567890')
+        self.assertEqual([first['version'], second['version'], third['version']],
+                         ['2026-10-18', '2026-10-18-2', '2026-10-18-3'])
+        with patch('document_stamp.publication_day', return_value='2026-10-19'):
+            # A retry retains the date reserved before midnight.
+            self.assertEqual(self.run_op(action='baja', defer_archive=True, name='Otro Nombre',
+                             operation_id='operation-3234567890'), third)
+            current = self.run_op(action='version', operation_id='operation-4234567890')
+        self.assertEqual(current['version'], '2026-10-19')
+        self.assertTrue(current['filename'].endswith('-2026-10-19.docx'))
+
+    def test_legacy_policy_and_document_files_are_archived_without_renaming(self):
+        for policy in (False, True):
+            with self.subTest(policy=policy):
+                self.cloud = MemoryStorage()
+                prefix = '' if policy else self.meta['code'] + '-'
+                old = self.meta['directory'] + '/' + prefix + 'control-documental-v017.pdf'
+                self.cloud.put(old, b'old')
+                result = self.run_op(action='version', code='' if policy else self.meta['code'], is_politica=policy)
+                self.assertEqual(result['version'], '2026-10-18')
+                self.assertNotIn(old, self.cloud.objects)
+                self.assertEqual(self.cloud.get(self.meta['directory'] + '/baja/' + old.rsplit('/', 1)[-1])[0], b'old')
 
     def test_competing_lock_blocks_upload(self):
         key = self.meta['directory']+'/.idpn-lock-'+self.meta['code']+'.json'
@@ -215,7 +244,7 @@ class NativeLifecycleTests(unittest.TestCase):
         self.meta['storage'] = {'provider':'azure','target':'documents','account':'companyaccount'}
         first = self.run_op(); self.file.write_bytes(b'new')
         second = self.run_op(action='version', operation_id='operation-2234567890')
-        self.assertEqual(second['version'], 'v002')
+        self.assertEqual(second['version'], '2026-10-18-2')
         self.assertNotIn(first['key'], self.cloud.objects)
 
 

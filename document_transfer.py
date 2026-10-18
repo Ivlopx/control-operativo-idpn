@@ -5,6 +5,7 @@ import re
 from urllib.parse import urlparse
 
 from document_matrix import slug
+from document_stamp import STAMP_SUFFIX, valid_stamp, stamp_sort_key
 
 
 
@@ -23,7 +24,7 @@ def transfer_document(plan, operation_id, temporary_file=None):
         raise ValueError('La respuesta del almacenamiento no corresponde a este documento.')
     if plan['action'] != 'baja' or temporary_file:
         version = result.get('version','')
-        if not re.fullmatch(r'v[0-9]{3,}', version):
+        if not valid_stamp(version):
             raise ValueError('El almacenamiento no devolvió una versión válida.')
         extension = Path(temporary_file).suffix.lower()
         filename = f'{(plan["code"]+"-") if plan["code"] else ""}{slug(plan["name"])}-{version}{extension}'
@@ -31,7 +32,7 @@ def transfer_document(plan, operation_id, temporary_file=None):
             raise ValueError('El almacenamiento devolvió un nombre o directorio diferente al calculado por la matriz.')
     else:
         identity = re.escape(slug(plan['name'])) if plan.get('is_politica') else re.escape(plan['code'])+r'-.+'
-        pattern = re.compile(r'^'+identity+(r'(?:-v[0-9]{3,})?' if plan.get('is_politica') else '')+r'\.(?:pdf|docx?|xlsx?|pptx?)$', re.I)
+        pattern = re.compile(r'^'+identity+(STAMP_SUFFIX if plan.get('is_politica') else '')+r'\.(?:pdf|docx?|xlsx?|pptx?)$', re.I)
         archived = result.get('archived')
         if not isinstance(archived, list) or not archived:
             raise ValueError('El almacenamiento no devolvió los archivos archivados de la baja.')
@@ -42,8 +43,7 @@ def transfer_document(plan, operation_id, temporary_file=None):
             if not pattern.fullmatch(filename) or item.get('key') != plan['classification_directory']+'/baja/'+filename or item.get('source_key') != plan['classification_directory']+'/'+filename:
                 raise ValueError('La baja devolvió un archivo fuera del directorio del documento.')
         def rank(item):
-            match = re.search(r'-v([0-9]{3,})\.[^.]+$', item['key'], re.I)
-            return (int(match.group(1)) if match else 0, item['source_key'])
+            return (stamp_sort_key(item['key']), item['source_key'])
         latest = max(archived, key=rank)
         filename = latest['key'].split('/')[-1]
         if result.get('key') != latest['key'] or result.get('filename') != filename:

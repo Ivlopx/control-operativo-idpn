@@ -5,6 +5,7 @@ import mimetypes
 import re
 from pathlib import Path
 from document_matrix import _storage, slug
+from document_stamp import STAMP_SUFFIX, next_stamp
 from storage_providers import LIMIT, StorageError, make_storage
 
 EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'}
@@ -26,7 +27,7 @@ def file_matches(meta, key):
     if '/' in relative and not re.fullmatch(r'baja/[^/]+', relative):
         return False
     identity = re.escape(slug(meta['name']) if meta.get('is_politica') else meta['code'])
-    pattern = identity + (r'(?:-v[0-9]{3,})?' if meta.get('is_politica') else r'-.+') + r'\.(?:pdf|docx?|xlsx?|pptx?)'
+    pattern = identity + (STAMP_SUFFIX if meta.get('is_politica') else r'-.+') + r'\.(?:pdf|docx?|xlsx?|pptx?)'
     return bool(re.fullmatch(pattern, relative.split('/')[-1], re.I))
 
 
@@ -106,8 +107,7 @@ def execute_storage(meta, temporary_file=None, provider=None):
                 raise ValueError('El documento no existe; selecciona Alta.')
             old = [dict(item, destination=meta['directory'] + '/baja/' + item['key'].split('/')[-1], archived=False)
                    for item in files if not item['key'][len(meta['directory']) + 1:].startswith('baja/')]
-            numbers = [int(match[1]) for item in files if (match := re.search(r'-v(\d{3,})\.[^.]+$', item['key'], re.I))]
-            version = 'v' + str(max(numbers, default=0) + 1).zfill(3)
+            version = next_stamp(files)
             filename = (meta['code'] + '-' if not policy else '') + slug(meta['name']) + '-' + version + '.' + (extension or 'pdf')
             key = meta['directory'] + ('/baja/' if action == 'baja' else '/') + filename
             if action == 'finalizar_baja':

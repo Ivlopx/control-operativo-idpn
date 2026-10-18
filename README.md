@@ -35,7 +35,7 @@ El apartado **Configuración de empresas → Matriz y almacenamiento** administr
 siglas y destinos por empresa. Incluye el ejemplo de ZHIPOS y conserva el código capturado y calcula
 directorios para altas, nuevas versiones y bajas. Los formularios no se almacenan.
 
-Las operaciones de S3 y Azure se ejecutan directamente en Python con sus SDK oficiales. Las versiones se calculan consultando el inventario completo. Configura **Credenciales de almacenamiento · Global**, después el destino en **Almacenamiento** de cada empresa. No se necesita n8n.
+Las operaciones de S3 y Azure se ejecutan directamente en Python con sus SDK oficiales. Los archivos se nombran con la fecha de publicación de Ciudad de México (`AAAA-MM-DD`) y un sufijo `-2`, `-3`, etc. para el mismo documento y día, consultando el inventario activo y de baja. Los archivos antiguos siguen reconociéndose. Configura **Credenciales de almacenamiento · Global**, después el destino en **Almacenamiento** de cada empresa. No se necesita n8n.
 
 La baja requiere un archivo testigo: el primer proceso lo guarda en baja y publica la página, dejando activos los antecedentes. El segundo proceso, con el mismo folio, limpia Cognito y el folio en WordPress y después archiva antecedentes, verificando las copias y retirando los duplicados del testigo.
 

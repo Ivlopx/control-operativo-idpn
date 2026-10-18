@@ -3,3 +3,4 @@ playwright
 boto3>=1.40,<2
 azure-storage-blob>=12.26,<13
 gunicorn==23.0.0
+tzdata

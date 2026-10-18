@@ -6,6 +6,7 @@ import time
 import queue
 from urllib.parse import quote, unquote, urlparse
 from playwright.sync_api import sync_playwright
+from document_stamp import valid_stamp
 
 
 TITLE_CONNECTORS = frozenset("a al ante bajo con contra de del desde durante e el en entre hacia hasta la las los mediante ni o para pero por que según sin sobre tras u un una unas unos y".split())
@@ -89,6 +90,14 @@ def generate_gutenberg_html(site_config, page_data):
     if resource_type not in ('form', 'document'):
         raise ValueError('Tipo de recurso no válido.')
     metadata = f'data-idpn-action="{document_action}" data-idpn-resource="{resource_type}"'
+
+    stamp = page_data.get('storage_version', '')
+    if stamp:
+        if not valid_stamp(stamp):
+            raise ValueError('La marca de fecha del archivo no es válida.')
+        metadata += f' data-idpn-revision="{escape(stamp, quote=True)}"'
+        if not stamp.startswith('v'):
+            metadata += f' data-idpn-published-date="{stamp[:10]}"'
 
     heading = nombre if page_data.get('is_politica', False) else f"{codigo} {nombre}".strip()
 
@@ -180,7 +189,12 @@ def get_document_metadata(page, persisted=False):
                     if (!['alta','version','baja'].includes(action) || !['form','document'].includes(resource)) {
                         throw new Error('La marca interna de la acción no es válida.');
                     }
-                    found.push({action, resource});
+                    const item = {action, resource};
+                    const revision = node.getAttribute('data-idpn-revision');
+                    const publishedDate = node.getAttribute('data-idpn-published-date');
+                    if (revision) item.revision = revision;
+                    if (publishedDate) item.published_date = publishedDate;
+                    found.push(item);
                 }
                 visit(block.innerBlocks || []);
             }
@@ -195,7 +209,7 @@ def get_document_metadata(page, persisted=False):
             blocks = wp.blocks.parse(record.content.raw);
         }
         visit(blocks);
-        if (found.some(item => item.action !== found[0].action || item.resource !== found[0].resource)) {
+        if (found.some(item => JSON.stringify(item) !== JSON.stringify(found[0]))) {
             throw new Error('La página contiene marcas de acción contradictorias.');
         }
         return found[0] || null;
