@@ -381,6 +381,27 @@ class MatrixUITests(unittest.TestCase):
                          'Control Mediante Equipo, y/o Revisión del Área')
         self.assertEqual(self.errors, [])
 
+    def test_second_process_results_show_action_from_hidden_metadata(self):
+        self.page.locator('#nav-process2').click()
+        self.page.evaluate("""() => {
+            window.EventSource = class {close(){}};
+            connectToLogStream();
+            document.getElementById('results-container-p2').style.display = 'flex';
+        }""")
+        cases = [('alta','Alta'), ('version','Cambio'), ('cambio','Cambio'), ('baja','Baja'), (None,'Sin etiqueta')]
+        for action, _ in cases:
+            self.page.evaluate("""action => sseConnection.onmessage({data:JSON.stringify({
+                message:'Resultado', level:'success', folio_status:{status:'success', folio:'268123',
+                action, header:'PE-A-001 Documento', url:'https://example.test/documento'}
+            })})""", action)
+        self.assertEqual(self.page.locator('#results-exitosos-tbody .result-action-badge').all_inner_texts(),
+                         [label for _, label in cases])
+        self.assertEqual(self.page.locator('#results-exitosos-section th').all_inner_texts(), ['Encabezado','Acción','Enlace','Ir'])
+        for width in (1440, 390):
+            self.page.set_viewport_size({'width':width, 'height':1100})
+            self.assertFalse(self.page.evaluate('document.documentElement.scrollWidth > innerWidth'))
+        self.assertEqual(self.errors, [])
+
     def test_sections_have_routes_and_survive_refresh_and_back(self):
         self.page.locator('#nav-process2').click()
         self.assertTrue(self.page.url.endswith('/segundo-proceso'))

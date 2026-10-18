@@ -795,6 +795,9 @@ function connectToLogStream() {
       if (status === 'success') {
         const header = fs.header || folio;
         const url = fs.url || '';
+        const actionLabels = {alta:'Alta', version:'Cambio', cambio:'Cambio', baja:'Baja'};
+        const action = Object.hasOwn(actionLabels, fs.action) ? fs.action : 'unknown';
+        const actionLabel = actionLabels[action] || 'Sin etiqueta';
         
         const section = document.getElementById('results-exitosos-section');
         if (section) section.style.display = 'block';
@@ -811,6 +814,9 @@ function connectToLogStream() {
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">${escapeHtml(header)}</span>
                 <i class="fa-solid fa-copy" style="font-size: 11px; opacity: 0.6; flex-shrink: 0;"></i>
               </div>
+            </td>
+            <td class="result-action-cell" style="padding:10px 12px;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+              <span class="result-action-badge" data-action="${action}">${actionLabel}</span>
             </td>
             <td style="padding: 10px 12px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               ${url ? `

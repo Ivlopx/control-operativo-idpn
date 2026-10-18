@@ -651,3 +651,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent-color);
   .plan-summary-header {padding:13px 15px; gap:8px;}
   .plan-summary-header h3 {font-size:13px;}
 }
+
+.result-action-badge {display:inline-block; max-width:100%; box-sizing:border-box; padding:4px 7px; border:1px solid #dfe5e9; border-radius:7px; background:#f3f5f6; color:#667681; font-size:11px; font-weight:700; line-height:1.4; overflow-wrap:anywhere;}
+.result-action-badge[data-action="alta"] {background:#eaf4ee; border-color:#cfe5d7; color:#306045;}
+.result-action-badge[data-action="version"], .result-action-badge[data-action="cambio"] {background:#e9f0f6; border-color:#cddde9; color:#173b57;}
+.result-action-badge[data-action="baja"] {background:#faeee7; border-color:#efd9cb; color:#965333;}
+@media(max-width:600px) {.result-action-badge {font-size:10px; padding:3px 4px;}}
